@@ -70,7 +70,8 @@ The Boost C++ Libraries are a collection of peer-reviewed, high-quality C++ libr
 1. **Submit review request** to boost-users@lists.boost.org
    - Library name: Boost.Spatial (proposed)
    - Category: Containers, Algorithms
-   - Author(s): DigiStar Contributors
+   - Author(s): Alex Towell (lex@metafunctor.com)
+   - Affiliation: PhD Student, Computer Science, Southern Illinois University
    - Description: N-dimensional sparse spatial hash grid
    - Documentation: https://spinoza.github.io/sparse_spatial_hash/
    - Repository: https://github.com/spinoza/sparse_spatial_hash

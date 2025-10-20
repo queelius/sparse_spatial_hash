@@ -1,13 +1,13 @@
 site_name: Boost.Spatial - Sparse Spatial Hash
 site_description: A generic N-dimensional sparse spatial hash grid for high-performance spatial indexing
-site_author: DigiStar Contributors
+site_author: Alex Towell
 site_url: https://spinoza.github.io/sparse_spatial_hash/
 
 repo_name: spinoza/sparse_spatial_hash
 repo_url: https://github.com/spinoza/sparse_spatial_hash
 edit_uri: edit/main/docs/
 
-copyright: Copyright &copy; 2025 DigiStar Contributors. Licensed under Boost Software License 1.0
+copyright: Copyright &copy; 2025 Alex Towell. Licensed under Boost Software License 1.0
 
 theme:
   name: material

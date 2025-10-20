@@ -412,7 +412,8 @@ auto neighbors = grid.query_radius(radius, x, y);
 
 **Repository**: `/home/spinoza/github/beta/sparse_spatial_hash/`
 **License**: Boost Software License 1.0
-**Author**: DigiStar Contributors
+**Author**: Alex Towell (lex@metafunctor.com)
+**Affiliation**: PhD Student, Computer Science, Southern Illinois University (dual MS in CS and Math/Stats)
 **Status**: Production-ready, battle-tested in physics engine
 
 **Next Steps**:

@@ -370,7 +370,7 @@ Contributions welcome! This library aims for Boost-quality standards:
 Distributed under the [Boost Software License, Version 1.0](http://www.boost.org/LICENSE_1_0.txt).
 
 ```
-Copyright (C) 2025 DigiStar Contributors
+Copyright (C) 2025 Alex Towell
 
 Distributed under the Boost Software License, Version 1.0.
 (See accompanying file LICENSE_1_0.txt or copy at
@@ -404,5 +404,5 @@ Inspired by:
 
 **Status**: Production-ready, extracted from battle-tested physics engine
 **Version**: 1.0.0
-**Author**: DigiStar Contributors
-**Contact**: github.com/spinoza/sparse_spatial_hash
+**Author**: Alex Towell (PhD Student, CS, SIU)
+**Contact**: lex@metafunctor.com | github.com/spinoza/sparse_spatial_hash

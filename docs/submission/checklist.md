@@ -224,7 +224,8 @@ Dear Boost Community,
 I would like to request a formal review for Boost.Spatial, a sparse spatial hash grid library for N-dimensional spatial indexing.
 
 **Library Name**: Boost.Spatial
-**Author**: DigiStar Contributors
+**Author**: Alex Towell (lex@metafunctor.com)
+**Affiliation**: PhD Student, Computer Science, Southern Illinois University (dual MS in CS and Math/Stats)
 **Category**: Containers, Algorithms, Data Structures
 **Repository**: https://github.com/spinoza/sparse_spatial_hash
 **Documentation**: https://spinoza.github.io/sparse_spatial_hash/

@@ -2,7 +2,7 @@
 
 ## Boost Software License 1.0
 
-Copyright © 2025 DigiStar Contributors
+Copyright © 2025 Alex Towell
 
 Permission is hereby granted, free of charge, to any person or organization obtaining a copy of the software and accompanying documentation covered by this license (the "Software") to use, reproduce, display, distribute, execute, and transmit the Software, and to prepare derivative works of the Software, and to permit third-parties to whom the Software is furnished to do so, all subject to the following:
 

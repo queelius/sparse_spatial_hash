@@ -9,7 +9,7 @@
  * 5. Small vector optimization for entity lists
  * 6. Manual loop unrolling for common dimensions
  *
- * Copyright (C) 2025 DigiStar Contributors
+ * Copyright (C) 2025 Alex Towell
  * Distributed under the Boost Software License, Version 1.0.
  */
 
