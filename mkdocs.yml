@@ -1,0 +1,183 @@
+site_name: Boost.Spatial - Sparse Spatial Hash
+site_description: A generic N-dimensional sparse spatial hash grid for high-performance spatial indexing
+site_author: DigiStar Contributors
+site_url: https://spinoza.github.io/sparse_spatial_hash/
+
+repo_name: spinoza/sparse_spatial_hash
+repo_url: https://github.com/spinoza/sparse_spatial_hash
+edit_uri: edit/main/docs/
+
+copyright: Copyright &copy; 2025 DigiStar Contributors. Licensed under Boost Software License 1.0
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - toc.follow
+    - toc.integrate
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/grid
+
+extra:
+  version:
+    provider: mike
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/spinoza/sparse_spatial_hash
+      name: GitHub Repository
+    - icon: fontawesome/solid/book
+      link: http://www.boost.org/
+      name: Boost C++ Libraries
+  analytics:
+    feedback:
+      title: Was this page helpful?
+      ratings:
+        - icon: material/emoticon-happy-outline
+          name: This page was helpful
+          data: 1
+          note: Thanks for your feedback!
+        - icon: material/emoticon-sad-outline
+          name: This page could be improved
+          data: 0
+          note: Thanks for your feedback!
+
+extra_css:
+  - stylesheets/extra.css
+
+plugins:
+  - search:
+      lang: en
+      separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
+  - minify:
+      minify_html: true
+      minify_js: true
+      minify_css: true
+      htmlmin_opts:
+        remove_comments: true
+      cache_safe: true
+
+markdown_extensions:
+  # Python Markdown
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+
+  # Python Markdown Extensions
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+nav:
+  - Home:
+    - index.md
+    - License: license.md
+
+  - Getting Started:
+    - getting-started/index.md
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quick-start.md
+    - Tutorial: getting-started/tutorial.md
+
+  - User Guide:
+    - user-guide/index.md
+    - Core Concepts: user-guide/core-concepts.md
+    - Topologies: user-guide/topologies.md
+    - Queries: user-guide/queries.md
+    - Incremental Updates: user-guide/incremental-updates.md
+    - Advanced Usage: user-guide/advanced-usage.md
+    - Common Patterns: user-guide/common-patterns.md
+
+  - API Reference:
+    - api-reference/index.md
+    - grid_config: api-reference/grid-config.md
+    - sparse_spatial_hash: api-reference/sparse-spatial-hash.md
+    - position_accessor: api-reference/position-accessor.md
+    - Queries & Iteration: api-reference/queries.md
+    - Statistics: api-reference/statistics.md
+    - Type Aliases: api-reference/type-aliases.md
+
+  - Performance:
+    - performance/index.md
+    - Benchmarks: performance/benchmarks.md
+    - Optimizations: performance/optimizations.md
+    - Best Practices: performance/best-practices.md
+    - Comparison: performance/comparison.md
+
+  - Development:
+    - development/index.md
+    - Building: development/building.md
+    - Testing: development/testing.md
+    - Contributing: development/contributing.md
+    - Design Decisions: development/design-decisions.md
+
+  - Boost Submission:
+    - submission/index.md
+    - Boost Process: submission/boost-submission.md
+    - CppCon Proposal: submission/cppcon-proposal.md
+    - Checklist: submission/checklist.md

@@ -1,0 +1,78 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+_build/
+dist/
+*.egg-info/
+
+# Compiled binaries
+*.o
+*.so
+*.a
+*.exe
+*.dll
+*.dylib
+collision_2d
+collision_detection_2d
+md_3d
+molecular_dynamics_3d
+toroidal_world
+multi_resolution
+benchmark_sparse_hash
+test_sparse_hash
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.code-workspace
+
+# CMake generated
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+!cmake/*.cmake.in
+
+# Test outputs
+Testing/
+CTestTestfile.cmake
+*.log
+
+# Documentation build
+site/
+docs/_build/
+.mkdocs_cache/
+
+# Benchmark/profiling data
+*.json
+*.txt
+!CMakeLists.txt
+!LICENSE*.txt
+*.prof
+*.out
+perf.data*
+
+# Backup files
+*_backup.hpp
+*.bak
+*.orig
+
+# Python (for MkDocs)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+.venv/
+
+# OS files
+Thumbs.db
+.DS_Store
