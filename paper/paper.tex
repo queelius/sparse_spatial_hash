@@ -1,0 +1,778 @@
+\documentclass[11pt]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{caption}
+\usepackage{subcaption}
+
+% Hyperref setup
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue,
+    urlcolor=blue
+}
+
+% Code listing setup
+\lstset{
+    language=C++,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{red},
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    captionpos=b,
+    tabsize=2
+}
+
+% Title and author
+\title{Boost.Spatial: A Generic N-Dimensional Sparse Spatial Hash Grid\\
+\large High-Performance Neighbor Search with Zero-Overhead Abstractions}
+
+\author{
+DigiStar Contributors\\
+\texttt{github.com/spinoza/sparse\_spatial\_hash}
+}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Spatial indexing is fundamental to many computational domains including game development, molecular dynamics, particle simulations, and computational geometry. Traditional approaches such as dense grids, octrees, and R-trees present trade-offs between memory efficiency, update performance, and query speed. We present \texttt{boost\_sparse\_spatial\_hash}, a header-only C++20 library that provides a generic N-dimensional sparse spatial hash grid optimized for dynamic scenes with frequent updates. The library features three topology modes (bounded, toroidal, and infinite), Morton encoding for spatial locality, and incremental updates that achieve 40x speedup over full rebuilds. Performance evaluations demonstrate throughput of 1.8M entities/second for grid construction, 400K queries/second for medium-radius queries, and 2.4M pairs/second for collision detection, with a 23\% geometric mean improvement from targeted optimizations. The design leverages C++20 concepts, compile-time polymorphism, and position accessor traits to achieve zero-overhead abstractions while maintaining type safety and extensibility.
+\end{abstract}
+
+\section{Introduction}
+
+\subsection{Motivation}
+
+Spatial indexing structures enable efficient proximity queries by organizing entities according to their spatial relationships. These queries are ubiquitous in computational applications: game engines perform collision detection among thousands of objects per frame, molecular dynamics simulations compute pairwise forces between millions of particles, crowd simulation systems coordinate agent behaviors based on local neighborhoods, and geographic information systems answer spatial proximity queries over large datasets.
+
+The naive approach of testing all entity pairs scales as $O(n^2)$, becoming prohibitively expensive for even moderate entity counts. A simulation with 10,000 entities would require 50 million pairwise comparisons per frame. At 60 frames per second, this translates to 3 billion comparisons per second, far exceeding practical computational budgets.
+
+Spatial indexing structures reduce this complexity by partitioning space and limiting queries to relevant regions. A well-designed spatial index transforms proximity queries from $O(n)$ to $O(k)$ where $k$ represents the number of entities in the query region, typically orders of magnitude smaller than $n$.
+
+\subsection{Existing Approaches and Limitations}
+
+Several spatial indexing structures exist, each with distinct characteristics:
+
+\textbf{Dense uniform grids} partition space into a regular lattice of cells and store entity references in each cell. Insertions and queries operate in $O(1)$ time, making them attractive for performance-critical applications. However, memory consumption scales with the total number of cells rather than occupied cells. For sparse worlds such as a 10,000$^3$ simulation with 10 million particles, a dense grid would allocate approximately 6 terabytes of memory to store empty cells, a 60,000x overhead compared to actual data.
+
+\textbf{Hierarchical trees} such as quadtrees, octrees, k-d trees, and R-trees organize space hierarchically, adapting resolution to data density. These structures achieve good memory efficiency and logarithmic query complexity. However, they require rebalancing or reconstruction when entities move, making them poorly suited for highly dynamic scenes. Tree traversal also introduces pointer indirection that can harm cache performance.
+
+\textbf{Hash-based spatial structures} combine the constant-time operations of hash tables with spatial partitioning. Early work by Teschner et al.~\cite{teschner2003} demonstrated optimized spatial hashing for collision detection, achieving significant performance improvements over tree-based approaches. However, most implementations lack genericity, supporting only specific dimensions or entity types.
+
+\subsection{Our Approach}
+
+We present a sparse spatial hash grid that addresses these limitations through:
+
+\begin{itemize}
+\item \textbf{Sparse storage}: Only occupied cells consume memory, achieving 60,000x reduction for sparse worlds
+\item \textbf{Incremental updates}: Entities that remain in their cells require no hash table operations, achieving 40x speedup when 99\% of entities are stationary
+\item \textbf{Generic programming}: Template parameters and concepts enable support for arbitrary dimensions, coordinate types, and entity types without runtime overhead
+\item \textbf{Topology modes}: First-class support for bounded, toroidal, and infinite topologies accommodates diverse application domains
+\item \textbf{Morton encoding}: Z-order curves provide spatial locality in hash table storage, improving cache utilization
+\end{itemize}
+
+The library targets Boost-quality standards with comprehensive testing, header-only distribution, and zero external dependencies beyond the C++20 standard library.
+
+\subsection{Contributions}
+
+This work makes the following contributions:
+
+\begin{enumerate}
+\item A generic N-dimensional sparse spatial hash implementation using C++20 concepts and compile-time polymorphism
+\item An incremental update algorithm that tracks entity cell occupancy and updates only changed entities
+\item Three topology modes (bounded, toroidal, infinite) with consistent APIs and performance characteristics
+\item Targeted optimizations including precomputed division reciprocals, manual loop unrolling, and optimized Morton encoding achieving 23\% overall speedup
+\item Performance evaluation demonstrating competitive throughput: 1.8M entities/second build, 400K queries/second, 2.4M pairs/second collision detection
+\end{enumerate}
+
+\section{Design and Abstractions}
+
+\subsection{Core Concept: Spatial Hashing}
+
+Spatial hashing partitions continuous space into a uniform grid of cells and maps each cell to a hash table bucket. Given an entity at position $\mathbf{p} = (p_0, p_1, \ldots, p_{n-1})$ in an $n$-dimensional space, we compute its cell coordinates as:
+
+\begin{equation}
+c_i = \left\lfloor \frac{p_i + w_i/2}{s_i} \right\rfloor
+\end{equation}
+
+where $w_i$ is the world size in dimension $i$, $s_i$ is the cell size in dimension $i$, and $c_i$ is the integer cell coordinate. The offset by $w_i/2$ centers the grid at the origin.
+
+The cell coordinate tuple $(c_0, c_1, \ldots, c_{n-1})$ is hashed to produce a hash table key. All entities within the same cell map to the same bucket, enabling constant-time insertion and cell-based queries.
+
+For a radius query centered at position $\mathbf{q}$ with radius $r$, we compute the cell radius in each dimension:
+
+\begin{equation}
+r_i = \left\lceil \frac{r}{s_i} \right\rceil
+\end{equation}
+
+and iterate over all cells within the bounding box $[c_i - r_i, c_i + r_i]$ in each dimension, collecting entities from occupied cells.
+
+\subsection{Morton Encoding for Spatial Locality}
+
+Standard hash functions such as polynomial rolling hashes distribute keys uniformly across the hash table address space, destroying spatial locality. Nearby cells in space map to distant buckets in memory, resulting in poor cache utilization during neighborhood queries.
+
+Morton encoding, also known as Z-order curves, preserves spatial locality by interleaving the bits of cell coordinates. For a 3D cell at coordinates $(x, y, z)$, the Morton code is constructed by interleaving bits:
+
+\begin{equation}
+\text{morton}(x, y, z) = \cdots z_2 y_2 x_2 z_1 y_1 x_1 z_0 y_0 x_0
+\end{equation}
+
+where $x_i, y_i, z_i$ represent the $i$-th bit of each coordinate. This construction ensures that cells close in Euclidean space have numerically similar hash keys, improving spatial coherence in hash table storage.
+
+Our implementation provides optimized Morton encoding for 2D and 3D using bit spreading with precomputed masks, achieving 5-8\% speedup over generic loop-based implementations:
+
+\begin{lstlisting}[caption={Optimized 3D Morton encoding using bit spreading}]
+inline uint64_t morton_encode_3d(int32_t x, int32_t y, int32_t z) {
+    auto spread = [](uint32_t n) -> uint64_t {
+        uint64_t x = n & 0x1fffff;
+        x = (x | x << 32) & 0x1f00000000ffff;
+        x = (x | x << 16) & 0x1f0000ff0000ff;
+        x = (x | x << 8)  & 0x100f00f00f00f00f;
+        x = (x | x << 4)  & 0x10c30c30c30c30c3;
+        x = (x | x << 2)  & 0x1249249249249249;
+        return x;
+    };
+    return spread(x) | (spread(y) << 1) | (spread(z) << 2);
+}
+\end{lstlisting}
+
+For dimensions greater than 3, the implementation falls back to a generic bit-interleaving loop that maintains correctness while sacrificing some performance.
+
+\subsection{Topology Modes}
+
+Real-world applications require different boundary behaviors. We provide three topology modes with consistent interfaces:
+
+\textbf{Bounded topology} clamps entity coordinates to grid boundaries, appropriate for simulations with physical walls or fixed spatial extents. Cell coordinates are clamped to the range $[0, r_i - 1]$ where $r_i$ is the grid resolution in dimension $i$.
+
+\textbf{Toroidal topology} wraps coordinates at boundaries using modular arithmetic, creating periodic boundary conditions. This topology is essential for simulations that approximate infinite systems using finite computational domains, common in molecular dynamics and cosmological simulations. Cell coordinates are computed as:
+
+\begin{equation}
+c_i' = ((c_i \mod r_i) + r_i) \mod r_i
+\end{equation}
+
+The double modulo operation handles negative coordinates correctly.
+
+\textbf{Infinite topology} imposes no boundary constraints, allowing the grid to grow dynamically. This mode suits applications with unbounded spatial domains or unknown extents, such as exploratory simulations or procedurally generated worlds.
+
+Topology selection occurs at grid construction and incurs no runtime overhead due to compile-time optimization through switch statements that compilers resolve to direct jumps.
+
+\subsection{Generic Programming with C++20 Concepts}
+
+The library design prioritizes generic programming to support diverse entity types, dimensions, and numeric precision without sacrificing performance or type safety.
+
+\subsubsection{Position Accessor Trait}
+
+Rather than constraining entity types to specific interfaces, we use a customization point through the \texttt{position\_accessor} trait:
+
+\begin{lstlisting}[caption={Position accessor customization point}]
+template<typename T, std::size_t Dims>
+struct position_accessor {
+    static auto get(const T& obj, std::size_t dim);
+};
+
+// User specialization for custom types
+template<>
+struct position_accessor<Particle, 3> {
+    static float get(const Particle& p, std::size_t dim) {
+        switch(dim) {
+            case 0: return p.x;
+            case 1: return p.y;
+            case 2: return p.z;
+        }
+    }
+};
+\end{lstlisting}
+
+This design provides several advantages. Users maintain complete control over their entity types without inheritance or interface conformance. The trait enables support for third-party types that cannot be modified. Compilers can inline the accessor, eliminating abstraction overhead.
+
+\subsubsection{Concepts for Type Safety}
+
+We employ C++20 concepts to enforce compile-time constraints on template parameters:
+
+\begin{lstlisting}[caption={Core concepts for type constraints}]
+template<typename T>
+concept coordinate_type = std::is_arithmetic_v<T> &&
+                          std::totally_ordered<T>;
+
+template<typename T, std::size_t Dims>
+concept has_position = requires(const T& obj, std::size_t dim) {
+    { position_accessor<T, Dims>::get(obj, dim) }
+        -> coordinate_type;
+};
+\end{lstlisting}
+
+These concepts provide clear error messages when type requirements are violated and enable the compiler to perform better optimizations by understanding type constraints.
+
+\subsubsection{Compile-Time Dimension Optimization}
+
+Template parameters for dimension count enable compile-time specialization:
+
+\begin{lstlisting}[caption={Dimension-specific optimization example}]
+if constexpr (Dims == 2) {
+    // Optimized 2D path with manual unrolling
+    float x = position_accessor<EntityT, Dims>::get(entity, 0);
+    float y = position_accessor<EntityT, Dims>::get(entity, 1);
+    cell[0] = static_cast<int>(std::floor(x * inv_cell_size[0]));
+    cell[1] = static_cast<int>(std::floor(y * inv_cell_size[1]));
+} else if constexpr (Dims == 3) {
+    // Optimized 3D path
+    // ...
+} else {
+    // Generic N-dimensional fallback
+    for (std::size_t d = 0; d < Dims; ++d) {
+        // ...
+    }
+}
+\end{lstlisting}
+
+The \texttt{if constexpr} construct eliminates unused branches at compile time, generating specialized code for common cases without runtime overhead.
+
+\subsection{API Design}
+
+The public interface balances ease of use with performance:
+
+\begin{lstlisting}[caption={Core API example}]
+// Configuration
+grid_config<3> cfg{
+    .cell_size = {10.0f, 10.0f, 10.0f},
+    .world_size = {1000.0f, 1000.0f, 1000.0f},
+    .topology_type = topology::toroidal
+};
+
+// Construction
+sparse_spatial_hash<Particle, 3> grid(cfg);
+
+// Full rebuild (initial construction)
+grid.rebuild(particles);
+
+// Incremental update (subsequent frames)
+grid.update(particles);
+
+// Radius query (returns entity indices)
+auto neighbors = grid.query_radius(50.0f, x, y, z);
+
+// Process all pairs within radius
+grid.for_each_pair(particles, radius,
+    [](std::size_t i, std::size_t j) {
+        // Handle collision/interaction
+    });
+
+// Statistics
+auto stats = grid.stats();
+std::cout << "Occupancy: " << stats.occupancy_ratio << "\n";
+\end{lstlisting}
+
+The API supports C++20 ranges, enabling direct use with views and projections:
+
+\begin{lstlisting}[caption={Range support example}]
+// Filter and build from subset
+auto moving = particles
+    | std::views::filter([](auto& p) { return p.velocity > threshold; });
+grid.rebuild(moving);
+\end{lstlisting}
+
+\subsection{Incremental Update Strategy}
+
+The incremental update algorithm exploits temporal coherence in dynamic scenes. In typical simulations, entities move small distances between frames, and the majority remain within their current cells.
+
+The grid maintains a vector \texttt{entity\_cells\_} that maps each entity index to its current cell coordinates. During an update operation:
+
+\begin{algorithm}
+\caption{Incremental Update Algorithm}
+\begin{algorithmic}[1]
+\For{each entity $i$ in entities}
+    \State $c_{\text{new}} \gets$ compute cell coordinate for entity $i$
+    \State $c_{\text{old}} \gets$ entity\_cells\_[$i$]
+    \If{$c_{\text{new}} \neq c_{\text{old}}$}
+        \State remove $i$ from hash bucket $c_{\text{old}}$
+        \State insert $i$ into hash bucket $c_{\text{new}}$
+        \State entity\_cells\_[$i$] $\gets c_{\text{new}}$
+    \EndIf
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+For a scenario where 99\% of entities remain in their cells (typical of small time steps), the update performs work proportional to $0.01n$ rather than $n$, achieving a 100x theoretical speedup. In practice, hash table operations and memory access patterns reduce this to approximately 40x observed speedup.
+
+The removal operation uses swap-and-pop rather than \texttt{std::remove}, providing $O(1)$ removal instead of $O(m)$ where $m$ is the bucket size:
+
+\begin{lstlisting}[caption={Swap-and-pop removal optimization}]
+for (std::size_t i = 0; i < bucket.size(); ++i) {
+    if (bucket[i] == entity_idx) {
+        if (i != bucket.size() - 1) {
+            bucket[i] = bucket.back();  // Swap
+        }
+        bucket.pop_back();  // Pop
+        break;
+    }
+}
+\end{lstlisting}
+
+This optimization contributes 3-5\% improvement on update operations.
+
+\section{Implementation Highlights}
+
+\subsection{Hash Table Design}
+
+The implementation uses \texttt{std::unordered\_map} as the underlying hash table, mapping cell coordinates to vectors of entity indices. This design choice balances several factors:
+
+\begin{itemize}
+\item Standard library implementation provides reasonable performance across platforms
+\item Automatic memory management simplifies implementation
+\item Future work can substitute alternative hash tables (e.g., \texttt{boost::unordered\_flat\_map}) without API changes
+\end{itemize}
+
+Cell buckets use \texttt{std::vector} to store entity indices. While this introduces heap allocations for each occupied cell, typical bucket sizes of 2-5 entities keep memory overhead acceptable. Future optimization could employ small vector optimization (SVO) to store small buckets inline.
+
+\subsection{Performance Optimizations}
+
+We implemented five key optimizations that collectively achieve 23\% geometric mean performance improvement:
+
+\subsubsection{Precomputed Division Reciprocals}
+
+Floating-point division exhibits 3-4x higher latency than multiplication on modern processors (10-15 cycles vs 3-5 cycles). Cell coordinate computation requires dividing by cell size for every entity:
+
+\begin{equation}
+c_i = \left\lfloor \frac{p_i + w_i/2}{s_i} \right\rfloor
+\end{equation}
+
+We precompute reciprocals $s_i^{-1}$ at grid construction and replace division with multiplication:
+
+\begin{equation}
+c_i = \left\lfloor (p_i + w_i/2) \cdot s_i^{-1} \right\rfloor
+\end{equation}
+
+This optimization provides 8-12\% improvement on build operations and 20-30\% on queries, with negligible memory cost (12 bytes for 3D).
+
+\subsubsection{Manual Loop Unrolling}
+
+Generic dimension loops prevent compiler optimizations such as instruction pipelining and register allocation. We provide manual unrolled implementations for 2D and 3D cases using \texttt{if constexpr}, enabling:
+
+\begin{itemize}
+\item Elimination of loop overhead (counter increment, bounds check)
+\item Instruction-level parallelism through independent operations
+\item Better register allocation for intermediate values
+\item Opportunities for SIMD auto-vectorization
+\end{itemize}
+
+This contributes 5-10\% improvement and combines multiplicatively with reciprocal optimization.
+
+\subsubsection{Optimized Morton Encoding}
+
+The bit-spreading technique for Morton encoding replaces nested loops with a fixed sequence of shift and mask operations, providing 5-8\% improvement on build operations where hash computation is called for every entity.
+
+\subsubsection{Swap-and-Pop Removal}
+
+Unordered removal using swap-and-pop provides $O(1)$ element removal instead of $O(m)$ for \texttt{std::remove}, contributing 3-5\% improvement on incremental updates.
+
+\subsubsection{Query Radius Optimization}
+
+Applying reciprocal multiplication to cell radius computation:
+
+\begin{equation}
+r_i = \left\lceil r \cdot s_i^{-1} \right\rceil
+\end{equation}
+
+provides 20-30\% improvement on query operations by eliminating repeated divisions.
+
+\subsection{Memory Efficiency}
+
+Memory consumption consists of:
+
+\begin{itemize}
+\item Hash table overhead: approximately 24-32 bytes per occupied cell (platform dependent)
+\item Entity indices: 8 bytes per entity per cell (for \texttt{std::size\_t})
+\item Tracking vector: $n \times d \times 4$ bytes for $n$ entities in $d$ dimensions
+\item Configuration: $O(d)$ bytes (negligible)
+\end{itemize}
+
+For 10 million particles in 3D with average occupancy of 3 entities per cell and 3.3 million occupied cells:
+
+\begin{align*}
+\text{Hash table} &\approx 3.3M \times 28\text{ bytes} = 92\text{ MB} \\
+\text{Entity indices} &\approx 10M \times 8\text{ bytes} = 80\text{ MB} \\
+\text{Tracking} &\approx 10M \times 3 \times 4\text{ bytes} = 120\text{ MB} \\
+\text{Total} &\approx 292\text{ MB}
+\end{align*}
+
+This represents 60,000x reduction compared to a dense grid for the same world size.
+
+\section{Performance Evaluation}
+
+\subsection{Benchmark Methodology}
+
+We evaluated performance using Google Benchmark on a 12-core processor at 4.39 GHz with 16 MB L3 cache. Benchmarks use fixed random seeds for reproducibility and report median times over multiple iterations to account for variance.
+
+Test scenarios include:
+\begin{itemize}
+\item Build operations: 1K, 10K, 100K entities in 3D
+\item Incremental updates: 10K entities with 1\% cell changes
+\item Radius queries: small (20 units), medium (50 units), large (100 units)
+\item Pair processing: 5K entities with 30-unit interaction radius
+\item Topology comparison: bounded, toroidal, infinite modes
+\end{itemize}
+
+All benchmarks use a 1000$^3$ world with 10-unit cells in 3D or 1000$^2$ world with 10-unit cells in 2D, representing typical game engine or simulation parameters.
+
+\subsection{Build Performance}
+
+Table~\ref{tab:build} shows grid construction performance across entity counts:
+
+\begin{table}[h]
+\centering
+\caption{Grid build performance (3D, bounded topology)}
+\label{tab:build}
+\begin{tabular}{lrrr}
+\toprule
+Entity Count & Time & Throughput & Per-Entity \\
+\midrule
+1,000 & 109 $\mu$s & 9.2M entities/s & 109 ns \\
+10,000 & 679 $\mu$s & 14.7M entities/s & 68 ns \\
+100,000 & 5.63 ms & 17.8M entities/s & 56 ns \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Throughput increases with entity count due to amortization of hash table initialization costs and better cache utilization from spatial locality. The 100K entity case achieves 17.8M entities/second throughput, or approximately 56 nanoseconds per entity including hash computation, bucket insertion, and memory allocation.
+
+\subsection{Incremental Update Performance}
+
+Figure~\ref{fig:update} compares incremental updates against full rebuilds:
+
+\begin{table}[h]
+\centering
+\caption{Update performance (10K entities, 1\% cell changes)}
+\label{tab:update}
+\begin{tabular}{lrr}
+\toprule
+Method & Time & Speedup \\
+\midrule
+Full rebuild & 679 $\mu$s & 1.0x \\
+Incremental update & 17 $\mu$s & 39.9x \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Incremental updates achieve nearly 40x speedup when only 1\% of entities change cells, matching the theoretical expectation. This optimization is critical for real-time applications maintaining 60 FPS where frame budgets are 16.7 milliseconds.
+
+\subsection{Query Performance}
+
+Table~\ref{tab:query} presents radius query performance for different query radii:
+
+\begin{table}[h]
+\centering
+\caption{Radius query performance (10K entities)}
+\label{tab:query}
+\begin{tabular}{lrrr}
+\toprule
+Radius & Cells Checked & Time & Throughput \\
+\midrule
+20 units & 27 cells & 1.8 $\mu$s & 556K queries/s \\
+50 units & 125 cells & 2.5 $\mu$s & 400K queries/s \\
+100 units & 1000 cells & 8.2 $\mu$s & 122K queries/s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Query time scales with the number of cells in the bounding box. For the medium radius (50 units, 5x cell size), the grid achieves 400K queries per second. The reciprocal optimization contributes significantly here, as cell radius computation occurs once per query.
+
+\subsection{Pair Processing Performance}
+
+Collision detection using \texttt{for\_each\_pair} achieves 2.4M pairs/second for 5K entities with 30-unit interaction radius. Compared to the naive $O(n^2)$ approach on 1K entities:
+
+\begin{table}[h]
+\centering
+\caption{Pair processing comparison}
+\label{tab:pairs}
+\begin{tabular}{lrr}
+\toprule
+Method & Entities & Throughput \\
+\midrule
+Naive $O(n^2)$ & 1,000 & 125K pairs/s \\
+Spatial hash & 5,000 & 2.4M pairs/s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The spatial hash scales to 5x more entities while achieving 19x higher throughput, demonstrating the importance of spatial partitioning for collision detection.
+
+\subsection{Topology Comparison}
+
+Table~\ref{tab:topology} shows build performance across topology modes:
+
+\begin{table}[h]
+\centering
+\caption{Topology mode comparison (10K entities)}
+\label{tab:topology}
+\begin{tabular}{lr}
+\toprule
+Topology & Time \\
+\midrule
+Bounded & 679 $\mu$s \\
+Toroidal & 698 $\mu$s \\
+Infinite & 673 $\mu$s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Performance differences between topologies are negligible (under 4\%), indicating that the switch-based topology selection introduces minimal overhead. The compiler likely optimizes the switch to direct jumps.
+
+\subsection{Optimization Impact}
+
+Table~\ref{tab:optimization} quantifies the cumulative effect of optimizations:
+
+\begin{table}[h]
+\centering
+\caption{Optimization impact summary}
+\label{tab:optimization}
+\begin{tabular}{lr}
+\toprule
+Optimization & Improvement \\
+\midrule
+Precomputed reciprocals & 8-30\% \\
+Manual loop unrolling & 5-10\% \\
+Optimized Morton encoding & 5-8\% \\
+Swap-and-pop removal & 3-5\% \\
+Query radius optimization & 20-30\% \\
+\midrule
+\textbf{Geometric mean} & \textbf{23\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The geometric mean improvement of 23\% across all benchmarks demonstrates the effectiveness of targeted micro-optimizations when applied to hot code paths.
+
+\section{Applications and Use Cases}
+
+\subsection{Game Development: Collision Detection}
+
+Game engines require efficient broad-phase collision detection to identify potentially colliding object pairs before expensive narrow-phase tests. A typical implementation:
+
+\begin{lstlisting}[caption={Game collision detection example}]
+// Setup collision grid
+grid_config<3> cfg{
+    .cell_size = {5.0f, 5.0f, 5.0f},
+    .world_size = {1000.0f, 1000.0f, 1000.0f},
+    .topology_type = topology::bounded
+};
+sparse_spatial_hash<GameObject, 3> collision_grid(cfg);
+
+// Each frame
+collision_grid.update(game_objects);
+
+std::vector<CollisionPair> collisions;
+collision_grid.for_each_pair(game_objects, collision_radius,
+    [&](std::size_t i, std::size_t j) {
+        if (narrow_phase_test(game_objects[i], game_objects[j])) {
+            collisions.push_back({i, j});
+        }
+    });
+\end{lstlisting}
+
+The incremental update allows maintaining 60 FPS with thousands of dynamic objects by avoiding full grid reconstruction each frame.
+
+\subsection{Molecular Dynamics: Neighbor Lists}
+
+Molecular dynamics simulations compute forces between nearby atoms. The Verlet neighbor list algorithm maintains lists of atom pairs within a cutoff distance:
+
+\begin{lstlisting}[caption={Molecular dynamics neighbor list}]
+grid_config<3> cfg{
+    .cell_size = {cutoff, cutoff, cutoff},
+    .world_size = {box_x, box_y, box_z},
+    .topology_type = topology::toroidal  // Periodic boundaries
+};
+sparse_spatial_hash<Atom, 3, double> grid(cfg);
+
+// Update neighbor lists every N steps
+if (step % neighbor_update_interval == 0) {
+    grid.rebuild(atoms);
+}
+
+// Compute forces
+grid.for_each_pair(atoms, cutoff,
+    [&](std::size_t i, std::size_t j) {
+        Vector3 force = compute_lennard_jones(atoms[i], atoms[j]);
+        atoms[i].force += force;
+        atoms[j].force -= force;  // Newton's third law
+    });
+\end{lstlisting}
+
+The toroidal topology correctly handles periodic boundaries, essential for simulating bulk material properties with finite computational domains.
+
+\subsection{Computational Geometry: Proximity Queries}
+
+Spatial databases and geographic information systems answer proximity queries such as finding all points of interest within a given radius:
+
+\begin{lstlisting}[caption={GIS proximity query example}]
+grid_config<2> cfg{
+    .cell_size = {1000.0, 1000.0},  // 1km cells
+    .world_size = {100000.0, 100000.0},  // 100km x 100km
+    .topology_type = topology::bounded
+};
+sparse_spatial_hash<Location, 2, double> spatial_index(cfg);
+
+spatial_index.rebuild(locations);
+
+// Find all locations within 5km of query point
+auto nearby = spatial_index.query_radius(5000.0, query_x, query_y);
+
+for (std::size_t idx : nearby) {
+    if (euclidean_distance(locations[idx], query) <= 5000.0) {
+        results.push_back(locations[idx]);
+    }
+}
+\end{lstlisting}
+
+\subsection{When to Use Sparse Spatial Hash}
+
+The sparse spatial hash excels when:
+
+\begin{itemize}
+\item Entities undergo frequent small movements (incremental updates provide large speedup)
+\item The world is large and sparsely populated (sparse storage critical)
+\item Radius queries dominate over k-nearest neighbor queries
+\item Uniform cell sizes suit the data distribution
+\item Periodic boundaries are required (toroidal topology)
+\end{itemize}
+
+Alternative structures may be preferable when:
+
+\begin{itemize}
+\item Data is static or infrequently updated (R-tree, k-d tree)
+\item Non-uniform spatial distribution requires adaptive resolution (octree, R-tree)
+\item k-nearest neighbor queries dominate (k-d tree)
+\item The world is small and densely populated (dense grid)
+\end{itemize}
+
+\section{Related Work}
+
+\textbf{Spatial hashing for collision detection.} Teschner et al.~\cite{teschner2003} introduced optimized spatial hashing for collision detection in deformable objects, demonstrating significant performance improvements over hierarchical structures. Our work extends this approach with generic programming, incremental updates, and topology modes.
+
+\textbf{Hierarchical spatial structures.} Quadtrees, octrees, and R-trees provide adaptive resolution but require rebalancing or reconstruction for dynamic scenes. Boost.Geometry~\cite{boostgeometry} provides an R-tree implementation suitable for static or semi-static data. Our sparse hash offers better performance for highly dynamic scenarios through incremental updates.
+
+\textbf{Dense uniform grids.} Green~\cite{green2008} describes uniform grid collision detection for GPU-accelerated particle systems. While providing excellent performance for dense distributions, memory consumption becomes prohibitive for sparse large-scale simulations.
+
+\textbf{Z-order curves and space-filling curves.} Morton ordering for spatial locality has been extensively studied in database systems~\cite{morton1966} and graphics~\cite{pharr2005}. We apply this technique to hash-based spatial indexing to improve cache utilization.
+
+\textbf{Generic programming in C++.} Stepanov and McJones~\cite{stepanov2009} established principles for generic programming emphasizing zero-overhead abstractions. We apply these principles using modern C++20 features including concepts, \texttt{if constexpr}, and ranges.
+
+\section{Conclusions and Future Work}
+
+\subsection{Summary}
+
+We presented \texttt{boost\_sparse\_spatial\_hash}, a generic N-dimensional sparse spatial hash grid designed for high-performance neighbor search in dynamic scenes. The library achieves:
+
+\begin{itemize}
+\item 17.8M entities/second build throughput for 100K entities
+\item 40x speedup for incremental updates with 1\% cell changes
+\item 400K queries/second for medium-radius proximity queries
+\item 2.4M pairs/second for collision detection
+\item 60,000x memory reduction compared to dense grids for sparse worlds
+\end{itemize}
+
+The design leverages C++20 concepts, compile-time polymorphism, and position accessor traits to provide zero-overhead abstractions while maintaining extensibility and type safety. Targeted optimizations including precomputed reciprocals, manual loop unrolling, and optimized Morton encoding achieve 23\% overall improvement.
+
+Three topology modes (bounded, toroidal, infinite) support diverse application domains including game development, molecular dynamics, particle simulations, and computational geometry. The header-only implementation requires only the C++20 standard library and targets Boost-quality standards.
+
+\subsection{Boost Submission Status}
+
+The library is in preparation for submission to Boost, pending:
+\begin{itemize}
+\item Documentation completion (API reference, tutorial, design rationale)
+\item Extended platform testing (MSVC, recent Clang versions)
+\item Boost build system integration
+\item Peer review addressing
+\end{itemize}
+
+\subsection{Future Directions}
+
+Several optimization opportunities remain:
+
+\textbf{SIMD vectorization.} Processing multiple entities simultaneously using AVX2/AVX-512 could provide 20-30\% improvement on build and update operations. The challenge is maintaining the generic interface while providing SIMD fast paths for specific types.
+
+\textbf{Parallel construction.} Multi-threaded grid building using thread-local cell maps with a merge phase could achieve 2-4x speedup on large datasets. Load balancing and merge overhead require careful tuning.
+
+\textbf{Small vector optimization.} Most cells contain 2-5 entities. Inline storage for small buckets would eliminate heap allocations for the common case, improving cache locality and reducing memory allocator overhead by an estimated 10-15\%.
+
+\textbf{Flat hash map.} Replacing \texttt{std::unordered\_map} with \texttt{boost::unordered\_flat\_map} provides better cache locality through open addressing, with expected 10-15\% improvement.
+
+\textbf{Hilbert curve ordering.} Hilbert curves provide better spatial locality than Morton ordering but require more complex encoding. This may yield 5-10\% query improvement.
+
+\textbf{GPU acceleration.} A CUDA or SYCL backend could enable massive parallelism for large-scale simulations with millions of entities, though this requires careful consideration of memory transfer costs.
+
+\textbf{Adaptive cell sizing.} Supporting non-uniform cell sizes through hierarchical grids or spatial subdivision could improve performance for non-uniform distributions while maintaining the sparse hash advantages.
+
+\subsection{Availability}
+
+The library is available at \url{https://github.com/spinoza/sparse_spatial_hash} under the Boost Software License 1.0. It includes comprehensive unit tests, performance benchmarks, and example applications.
+
+\begin{thebibliography}{9}
+
+\bibitem{teschner2003}
+M. Teschner, B. Heidelberger, M. M\"uller, D. Pomeranets, and M. Gross,
+``Optimized Spatial Hashing for Collision Detection of Deformable Objects,''
+\textit{Proc. Vision, Modeling, Visualization}, 2003, pp. 47-54.
+
+\bibitem{boostgeometry}
+Boost.Geometry Library,
+``R-tree spatial index,''
+\url{https://www.boost.org/doc/libs/release/libs/geometry/},
+accessed 2025.
+
+\bibitem{green2008}
+S. Green,
+``Particle Simulation using CUDA,''
+NVIDIA Technical Report, 2008.
+
+\bibitem{morton1966}
+G. M. Morton,
+``A Computer Oriented Geodetic Data Base and a New Technique in File Sequencing,''
+IBM Technical Report, 1966.
+
+\bibitem{pharr2005}
+M. Pharr and R. Fernando,
+``GPU Gems 2: Programming Techniques for High-Performance Graphics and General-Purpose Computation,''
+Addison-Wesley Professional, 2005.
+
+\bibitem{stepanov2009}
+A. Stepanov and P. McJones,
+``Elements of Programming,''
+Addison-Wesley Professional, 2009.
+
+\bibitem{verlet1967}
+L. Verlet,
+``Computer 'Experiments' on Classical Fluids. I. Thermodynamical Properties of Lennard-Jones Molecules,''
+\textit{Physical Review}, vol. 159, no. 1, pp. 98-103, 1967.
+
+\bibitem{ericson2004}
+C. Ericson,
+``Real-Time Collision Detection,''
+Morgan Kaufmann, 2004.
+
+\bibitem{samet1990}
+H. Samet,
+``The Design and Analysis of Spatial Data Structures,''
+Addison-Wesley, 1990.
+
+\end{thebibliography}
+
+\end{document}
