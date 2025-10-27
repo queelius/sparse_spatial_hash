@@ -214,7 +214,7 @@ Final occupancy: 75%
 - Advanced examples
 - Installation instructions
 
-### Tutorial (doc/tutorial.md)
+### Tutorial (docs/getting-started/tutorial.md)
 - Step-by-step guide
 - Common pitfalls with solutions
 - Best practices

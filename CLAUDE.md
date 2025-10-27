@@ -253,7 +253,7 @@ Expected results for 10,000 particles (2D, 1000×1000 world):
 1. Add public method in "Queries" section (line 456+)
 2. Document complexity and exception safety
 3. Add test in `test/test_queries.cpp`
-4. Add example usage to `doc/tutorial.md`
+4. Add example usage to `docs/getting-started/tutorial.md`
 
 ### Performance Optimization
 When optimizing:
@@ -314,6 +314,9 @@ Where:
 ## Related Documentation
 
 - `README.md`: User-facing documentation, quick start, examples
-- `doc/tutorial.md`: Step-by-step guide for library users
+- `docs/`: MkDocs documentation site (published to GitHub Pages)
+  - `docs/getting-started/tutorial.md`: Step-by-step guide for library users
+  - `docs/api-reference/`: Complete API documentation
+  - `docs/user-guide/`: In-depth usage guides
 - `PROJECT_SUMMARY.md`: Design decisions, extraction rationale, comparisons
 - Header comments: API reference with complexity guarantees

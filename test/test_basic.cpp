@@ -305,7 +305,7 @@ TEST_CASE("Grid capacity methods", "[basic][capacity]") {
 
         REQUIRE_FALSE(grid.empty());
         REQUIRE(grid.cell_count() > 0);
-        REQUIRE(grid.entity_count() == 0);  // Not tracked until reserve_entities
+        REQUIRE(grid.entity_count() == 2);  // Auto-tracked after rebuild
     }
 
     SECTION("Clear grid") {

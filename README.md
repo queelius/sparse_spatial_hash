@@ -343,10 +343,12 @@ Compares against:
 
 ## Documentation
 
-- **Tutorial**: `doc/tutorial.md` - Step-by-step guide
-- **API Reference**: `doc/api_reference.md` - Complete API documentation
-- **Design Rationale**: `doc/design.md` - Why sparse hash grids?
-- **Performance Guide**: `doc/performance.md` - Tuning and optimization
+Full documentation is available at: **https://spinoza.github.io/sparse_spatial_hash/**
+
+- **Tutorial**: Getting started guide with examples
+- **API Reference**: Complete API documentation
+- **User Guide**: In-depth coverage of features and patterns
+- **Performance**: Benchmarks, optimizations, and best practices
 
 ## Examples
 

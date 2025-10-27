@@ -19,6 +19,9 @@ add_executable(test_sparse_hash
     test_correctness.cpp
     test_types_and_precision.cpp
     test_advanced.cpp
+    test_edge_cases.cpp
+    test_exception_safety.cpp
+    test_limits.cpp
 )
 
 target_link_libraries(test_sparse_hash PRIVATE

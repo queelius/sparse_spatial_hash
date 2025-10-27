@@ -435,11 +435,9 @@ sparse_spatial_hash<Entity, 3> grid(cfg);
 These existing files can be easily adapted:
 
 1. **README.md** → Already excellent, content reused in index.md
-2. **doc/tutorial.md** → ✅ Already copied
-3. **doc/quick_reference.md** → Use for api-reference pages
-4. **OPTIMIZATIONS.md** → Use for performance/optimizations.md
-5. **TEST_STRATEGY.md** → Use for development/testing.md
-6. **PROJECT_SUMMARY.md** → Use for development/design-decisions.md
+2. **OPTIMIZATIONS.md** → Use for performance/optimizations.md
+3. **TEST_STRATEGY.md** → Use for development/testing.md
+4. **PROJECT_SUMMARY.md** → Use for development/design-decisions.md
 
 ### Content to Create
 
