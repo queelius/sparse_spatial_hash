@@ -73,6 +73,23 @@ venv/
 env/
 .venv/
 
+# LaTeX intermediate files
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.toc
+*.lof
+*.lot
+*.nav
+*.snm
+*.vrb
+*.dvi
+*.ps
+*.xdv
+
 # OS files
 Thumbs.db
 .DS_Store

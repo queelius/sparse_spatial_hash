@@ -29,6 +29,17 @@ target_link_libraries(test_sparse_hash PRIVATE
     Catch2::Catch2WithMain
 )
 
+# Enable OpenMP for v3 parallel tests
+target_compile_options(test_sparse_hash PRIVATE
+    $<$<CXX_COMPILER_ID:GNU,Clang>:-fopenmp>
+    $<$<CXX_COMPILER_ID:MSVC>:/openmp>
+)
+
+target_link_options(test_sparse_hash PRIVATE
+    $<$<CXX_COMPILER_ID:GNU,Clang>:-fopenmp>
+    $<$<CXX_COMPILER_ID:MSVC>:/openmp>
+)
+
 # Add to CTest - Catch2 provides automatic test discovery
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(CTest)

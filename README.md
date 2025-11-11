@@ -16,6 +16,7 @@ A **generic N-dimensional sparse spatial hash grid** for high-performance spatia
 - **Header-Only**: Single include, no linking required
 - **Zero-Overhead**: Generic programming with compile-time polymorphism
 - **Morton Hashing**: Cache-friendly Z-order curve for spatial locality
+- **Small Vector Optimization**: Inline storage for small cells (5-40% faster)
 
 ## Quick Start
 
@@ -115,6 +116,12 @@ From DigiStar physics engine (10M particles, 10000³ world):
 
 **40x faster** than rebuild when using incremental updates!
 
+**Latest Optimizations** (v1.1.0+):
+- Small vector optimization provides **5-40% speedup** across all operations
+- **40% faster rebuild** through inline storage for small cells (≤16 entities)
+- **5-11% faster updates and queries** via improved cache locality
+- Memory tradeoff: +256 bytes per occupied cell (acceptable for most workloads)
+
 ## Use Cases
 
 ### Game Development
@@ -182,6 +189,9 @@ sparse_spatial_hash<Entity, 3, double> precise_grid;
 
 // Custom index type (for >4B entities)
 sparse_spatial_hash<Entity, 3, float, uint64_t> large_grid;
+
+// Tune small vector size (default=16, set to 0 to disable)
+sparse_spatial_hash<Entity, 3, float, std::size_t, 32> tuned_grid;  // Larger inline storage
 ```
 
 ### Topology Support

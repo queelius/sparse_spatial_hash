@@ -166,6 +166,7 @@ nav:
     - performance/index.md
     - Benchmarks: performance/benchmarks.md
     - Optimizations: performance/optimizations.md
+    - Optimization Experiments: performance/optimization-experiments.md
     - Best Practices: performance/best-practices.md
     - Comparison: performance/comparison.md
 
@@ -175,6 +176,10 @@ nav:
     - Testing: development/testing.md
     - Contributing: development/contributing.md
     - Design Decisions: development/design-decisions.md
+    - Project Summary: development/project-summary.md
+    - Test Strategy: development/test-strategy.md
+    - Test Review: development/test-review.md
+    - Test Summary: development/test-summary.md
 
   - Boost Submission:
     - submission/index.md

@@ -27,3 +27,4 @@ target_compile_options(benchmark_sparse_hash PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-O3 -march=native>
     $<$<CXX_COMPILER_ID:MSVC>:/O2>
 )
+

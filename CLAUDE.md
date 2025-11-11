@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **header-only C++20 library** providing a generic N-dimensional sparse spatial hash grid for high-performance spatial indexing and neighbor queries. The library is designed to Boost/stdlib quality standards and aims for eventual inclusion in Boost or the C++ standard library.
+This is a **header-only C++20 library** providing a generic N-dimensional sparse spatial hash grid for high-performance spatial indexing and neighbor queries. The library is designed to Boost/stdlib quality standards and is ready for Boost submission.
 
 **Key Design Goals:**
 - Zero-overhead abstractions through generic programming
@@ -12,76 +12,44 @@ This is a **header-only C++20 library** providing a generic N-dimensional sparse
 - Fills genuine gap in C++ ecosystem (no existing hash-based sparse spatial grids)
 - Production-tested (extracted from DigiStar physics engine handling 10M+ particles)
 
+**Current Status:** v1.1.0 - Boost Submission Ready
+- 54 comprehensive tests, 326 assertions, 100% pass rate
+- All documented behaviors verified
+- Exception safety guaranteed and tested
+- Morton encoding limits documented and tested
+- Small vector optimization: 5-40% performance improvement
+
 ## Build System Commands
 
-### Building Tests
+### Building and Running Tests
 ```bash
 # From project root
 mkdir -p build && cd build
 cmake .. -DBUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
 make -j
+./test/test_sparse_hash  # Direct execution (fastest)
+
+# Or use CTest
 ctest --output-on-failure
 ```
 
-**Testing Framework**: Uses Catch2 v3 (automatically downloaded via CMake FetchContent)
-- Modern C++20-friendly BDD-style tests
-- Automatic test discovery via CTest
-- Each TEST_CASE becomes a separate CTest test
-- Tags for organizing tests: `[basic]`, `[topology]`, `[queries]`
+**Testing Framework**: Catch2 v3 (auto-downloaded via CMake FetchContent)
 
-**Running Tests with CTest**:
+**Running Specific Tests (Catch2 CLI)**:
 ```bash
-# Run all tests
-cd build
-ctest
-
-# Run with verbose output
-ctest --output-on-failure
-
-# Run specific test by name
-ctest -R "Grid construction"
-
-# Run tests matching a pattern
-ctest -R topology
-
-# List all available tests
-ctest -N
-
-# Run tests in parallel
-ctest -j4
-```
-
-**Running Tests Directly (Catch2 CLI)**:
-```bash
-# Run all tests
-./test/test_sparse_hash
-
 # Run tests matching a pattern
 ./test/test_sparse_hash "Grid*"
 
 # Run tests with specific tags
 ./test/test_sparse_hash "[basic]"
-./test/test_sparse_hash "[topology][bounded]"
+./test/test_sparse_hash "[edge]"
+./test/test_sparse_hash "[exception]"
 
 # List all tests
 ./test/test_sparse_hash --list-tests
 
-# List all tags
-./test/test_sparse_hash --list-tags
-```
-
-### Building Examples
-```bash
-# From project root
-mkdir -p build && cd build
-cmake .. -DBUILD_EXAMPLES=ON
-make -j
-
-# Run specific example
-./examples/collision_2d
-./examples/molecular_dynamics_3d
-./examples/toroidal_world
-./examples/multi_resolution
+# Compact output
+./test/test_sparse_hash --reporter compact
 ```
 
 ### Building Benchmarks
@@ -91,57 +59,41 @@ mkdir -p build && cd build
 cmake .. -DBUILD_BENCHMARKS=ON -DCMAKE_BUILD_TYPE=Release
 make -j
 ./benchmark/benchmark_sparse_hash
+
+# Filter specific benchmarks
+./benchmark/benchmark_sparse_hash --benchmark_filter=BM_Update
 ```
-
-**Benchmarking Framework**: Uses Google Benchmark (automatically downloaded via CMake FetchContent)
-- Statistical analysis, warmup, and outlier detection built-in
-- Prevents compiler optimizations from invalidating results
-- Comparative benchmarks included (naive O(n²), std::unordered_map baseline)
-
-**Running Specific Benchmarks**:
-```bash
-# Filter benchmarks by name
-./benchmark/benchmark_sparse_hash --benchmark_filter=BM_Build
-
-# Run with repetitions and show aggregates only
-./benchmark/benchmark_sparse_hash --benchmark_repetitions=3 --benchmark_report_aggregates_only=true
-
-# Export results to JSON for analysis
-./benchmark/benchmark_sparse_hash --benchmark_format=json > results.json
-
-# Run with specific time unit
-./benchmark/benchmark_sparse_hash --benchmark_time_unit=ms
-```
-
-**Key Benchmark Comparisons**:
-- `BM_Update_Incremental` vs `BM_Update_FullRebuild`: Shows ~3x speedup for incremental updates
-- `BM_ForEachPair_SparseHash` vs `BM_ForEachPair_Naive`: Demonstrates spatial hash advantage
-- `BM_Build_*` vs `BM_Build_UnorderedMap_Baseline`: Morton encoding vs simple hashing
 
 ### Building Everything
 ```bash
 mkdir -p build && cd build
 cmake .. -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON -DBUILD_BENCHMARKS=ON
 make -j
-ctest --output-on-failure
 ```
 
-### Quick Compilation Test (Manual)
+### Strict Warnings Build
 ```bash
-# Test that header compiles standalone
-g++ -std=c++20 -O2 -I./include -o collision_2d examples/collision_detection_2d.cpp
-./collision_2d
+# To catch all potential issues
+cmake .. -DBUILD_TESTS=ON -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wpedantic"
+make -j
 ```
 
 ## Architecture and Design Patterns
 
 ### Core Design Philosophy
 
-**Header-Only Template Library**: The entire library is in `include/boost/spatial/sparse_spatial_hash.hpp` (~710 lines). This is intentional:
+**Header-Only Template Library**: The entire library is in `include/boost/spatial/sparse_spatial_hash.hpp` (~970 lines). This is intentional:
 - Template-heavy code benefits from cross-translation-unit inlining
 - Zero-overhead generic programming requires visibility at instantiation
 - No linking required for users
 - Compiler can optimize for specific instantiations
+
+**Small Vector Optimization**: Custom `small_vector<T, N>` for inline storage (lines 50-190)
+- Stores ≤N elements on stack, avoids heap allocation for small cells
+- 80-90% of cells contain ≤16 entities, so default N=16 is optimal
+- Provides 5-40% speedup (40% on rebuild, 5-11% on queries/updates)
+- Configurable via `SmallCellSize` template parameter (default=16, set to 0 to disable)
+- Memory cost: +8*SmallCellSize bytes per cell (~256 bytes with default)
 
 **Customization Points over Inheritance**: Uses trait-based customization (`position_accessor`) rather than virtual functions:
 - Non-intrusive (works with any type, including POD structs)
@@ -149,7 +101,7 @@ g++ -std=c++20 -O2 -I./include -o collision_2d examples/collision_detection_2d.c
 - Users specialize template for their types
 - Default implementation for array-like types
 
-**Topology as First-Class Concept**: Three topology types (bounded, toroidal, infinite):
+**Topology as First-Class Concept**: Three topology types:
 - `bounded`: Clamp to grid edges (traditional games)
 - `toroidal`: Periodic wraparound (N-body simulations, Pac-Man physics)
 - `infinite`: Unbounded growth (procedural worlds)
@@ -159,28 +111,37 @@ g++ -std=c++20 -O2 -I./include -o collision_2d examples/collision_detection_2d.c
 1. **Morton Encoding (Z-Order Curve)**: Cell coordinates use Morton code hashing for spatial locality
    - Nearby cells in space = nearby in hash table
    - Improves cache efficiency during neighborhood queries
-   - See `cell_hash<Dims, CoordT>` in header
+   - **Coordinate limits**: 2D: ±2^31 cells, 3D: ±2^21 cells, 4D+: further reduced
+   - Documented in header comments (lines 180-186)
 
 2. **Incremental Updates**: `update()` method tracks which entities changed cells
-   - Only updates moved entities (typical: ~1% per frame)
-   - 40x faster than `rebuild()` in typical scenarios
-   - Uses `entity_cells_` tracking vector (line 244-245)
+   - Only updates moved entities (typically <5% per frame)
+   - ~40x faster than `rebuild()` when few entities move
+   - Uses `entity_cells_` tracking vector for O(k) updates where k = moved entities
+   - Swap-and-pop optimization for O(1) amortized removal
 
 3. **Generic N-Dimensional Iteration**: Template recursion for neighborhood queries
-   - `iterate_recursive<Dim>()` (line 658-676)
-   - Compile-time unrolling for known dimensions
+   - `iterate_recursive<Dim>()` with compile-time unrolling
    - Works for 2D, 3D, 4D, or any dimension count
+
+4. **Small Vector Optimization**: Inline storage for small cells eliminates malloc overhead
+   - Typical cells (≤16 entities) stored inline on stack
+   - Falls back to heap for larger cells transparently
+   - 40% faster rebuild, 5-11% faster updates/queries
+   - Tunable via `SmallCellSize` template parameter
 
 ### Memory Layout
 
 ```
-sparse_spatial_hash<Entity, Dims>
+sparse_spatial_hash<Entity, Dims, FloatT, IndexT, SmallCellSize>
 ├── config_              : grid_config<Dims> (cell sizes, world size, topology)
 ├── resolution_          : std::array<int, Dims> (cells per dimension)
-├── cells_               : unordered_map<cell_coord, vector<IndexT>>
+├── cell_size_inv_       : std::array<FloatT, Dims> (precomputed 1/cell_size)
+├── cells_               : unordered_map<cell_coord, small_vector<IndexT, SmallCellSize>>
 │                          ↑ Sparse storage: only occupied cells exist
+│                          ↑ small_vector: inline storage for ≤SmallCellSize entities
 └── entity_cells_        : vector<cell_coord> (tracks current cell per entity)
-                           ↑ Enables O(k) incremental updates
+                           ↑ Auto-tracked by rebuild()/update()
 ```
 
 **Memory Efficiency**: For 10M particles in 10000³ world:
@@ -190,13 +151,20 @@ sparse_spatial_hash<Entity, Dims>
 
 ## Testing Strategy
 
-### Test Structure
-Tests use simple assertions (no Catch2 dependency required):
-- `test/test_basic.cpp`: Construction, rebuild, queries, statistics
-- `test/test_topology.cpp`: Bounded, toroidal, infinite topologies
-- `test/test_queries.cpp`: Empty grid edge cases, radius queries, pair iteration
+### Test Structure (54 tests, 326 assertions)
+
+- `test/test_basic.cpp`: Construction, rebuild, queries, statistics (7 tests)
+- `test/test_topology.cpp`: Bounded, toroidal, infinite topologies (5 tests)
+- `test/test_queries.cpp`: Empty grid edge cases, radius queries, pair iteration (4 tests)
+- `test/test_correctness.cpp`: Morton encoding, pair correctness, incremental updates (4 tests)
+- `test/test_types_and_precision.cpp`: Type system, precision, large-scale (5 tests)
+- `test/test_advanced.cpp`: STL compat, move/copy semantics, statistics (6 tests)
+- `test/test_edge_cases.cpp`: Boundary conditions, overflow protection (5 tests)
+- `test/test_exception_safety.cpp`: Exception guarantees verified (11 tests)
+- `test/test_limits.cpp`: Morton encoding limits at boundaries (7 tests)
 
 ### Custom Position Accessor Pattern
+
 When writing tests for new entity types, always specialize `position_accessor`:
 
 ```cpp
@@ -211,15 +179,16 @@ struct boost::spatial::position_accessor<MyEntity, 3> {
 ```
 
 ### Performance Verification
+
 After changes, verify performance hasn't regressed:
 ```bash
 cd build && ./benchmark/benchmark_sparse_hash
 ```
 
-Expected results for 10,000 particles (2D, 1000×1000 world):
-- Build: ~1-2 ms
-- Update: ~0.2 ms/frame
-- Query radius: <1 ms
+Expected results for 10,000 particles (2D, 1000×1000 world, SmallCellSize=16):
+- Build: ~0.6-1 ms (40% faster than v1.0 due to small vector optimization)
+- Update: ~0.2 ms/frame (40x faster than rebuild when <5% move)
+- Query radius: <1 ms (5-7% faster than v1.0)
 - Collision detection: ~5-10 ms
 
 ## Code Style and Standards
@@ -231,9 +200,10 @@ Expected results for 10,000 particles (2D, 1000×1000 world):
 - Public interface documented with complexity guarantees and exception safety
 
 **Exception Safety Guarantees** (must be maintained):
-- Queries: Nothrow guarantee
-- Single-entity operations: Strong guarantee
-- Bulk operations: Basic guarantee
+- Queries (`query_radius`, `cell_entities`, `stats`): **Nothrow guarantee**
+- Copy operations: **Strong guarantee**
+- Bulk operations (`rebuild`, `update`): **Basic guarantee**
+- All guarantees verified in `test/test_exception_safety.cpp`
 
 **C++20 Features Used:**
 - Concepts (`requires` clauses)
@@ -243,31 +213,42 @@ Expected results for 10,000 particles (2D, 1000×1000 world):
 
 ## Common Development Tasks
 
-### Adding a New Topology Type
-1. Add enum value to `topology` enum (line 72-76)
-2. Implement wrapping logic in `wrap_cell()` (line 624-643)
-3. Add test in `test/test_topology.cpp`
-4. Document behavior in README.md and tutorial
-
 ### Adding a New Query Type
-1. Add public method in "Queries" section (line 456+)
-2. Document complexity and exception safety
-3. Add test in `test/test_queries.cpp`
-4. Add example usage to `docs/getting-started/tutorial.md`
+1. Add public method in "Queries" section (line 540+)
+2. Document complexity and exception safety guarantees
+3. Mark `const` and `noexcept` if appropriate
+4. Add test in `test/test_queries.cpp`
+5. Add example usage to `docs/getting-started/tutorial.md`
 
 ### Performance Optimization
+
+**Lessons from v1.0 → v1.1 Optimization Experiments** (see `docs/performance/optimization-experiments.md`):
+- **v2 (reverse mapping)**: FAILED - O(1) lookup slower than O(n) linear search for small n due to indirection overhead
+- **v3 (parallel for_each_pair)**: FAILED - OpenMP overhead >> work done, atomic contention catastrophic
+- **v4 (small vector)**: SUCCESS - Targeted common case (≤16 entities/cell), eliminated malloc bottleneck
+
+**Key Insights:**
+- Asymptotic complexity doesn't predict real performance for small n
+- Simple, cache-friendly code beats "clever" optimizations
+- Parallelization only helps when work >> synchronization overhead
+- Target the common case, not worst-case
+
 When optimizing:
 1. **Profile first**: Use benchmarks to identify bottlenecks
-2. **Maintain genericity**: Don't hard-code dimensions or types
-3. **Document trade-offs**: If specialization needed, explain why
-4. **Benchmark after**: Verify improvement is measurable
+2. **Test in isolation**: One optimization at a time, compare against baseline
+3. **Maintain genericity**: Don't hard-code dimensions or types
+4. **Document trade-offs**: If specialization needed, explain why
+5. **Benchmark after**: Verify improvement is measurable (not just theoretical)
+6. **Check warnings**: Build with `-Wall -Wextra -Wpedantic`
 
-### Adding Examples
-Examples should:
-- Be complete, runnable programs (with `main()`)
-- Demonstrate a specific use case or pattern
-- Include performance output
-- Be simple enough to understand quickly (< 200 lines)
+### Adding Tests for New Features
+Required test coverage:
+- Basic functionality test
+- Edge cases (empty grids, boundary conditions, extreme values)
+- Exception safety (if modifying operation)
+- Performance characteristics (if claiming speedup)
+- All topologies (bounded, toroidal, infinite)
+- Multiple dimensions (at least 2D and 3D)
 
 ## Important Constraints
 
@@ -275,34 +256,82 @@ Examples should:
 - Add external dependencies (keep header-only, stdlib-only)
 - Use virtual functions or RTTI (zero-overhead requirement)
 - Hard-code dimension count (must work for N dimensions)
-- Break exception safety guarantees
+- Break exception safety guarantees (nothrow queries!)
 - Change public API without strong justification (Boost-quality stability)
 
 **Do:**
 - Use concepts for constraints (better error messages)
 - Prefer compile-time computation (`constexpr`, templates)
 - Maintain STL compatibility (iterators, ranges)
-- Document complexity guarantees
-- Add tests for new features
+- Document complexity guarantees and exception safety
+- Add comprehensive tests (basic + edge cases + exception safety)
+- Mark methods `noexcept` where appropriate
+- Use `[[nodiscard]]` for queries that return values
+
+## Critical Implementation Details
+
+### Recent Changes (v1.1.0)
+
+**Bug Fixes:**
+1. **`cell_entities()` return type**: Now returns consistent view type (uses static `entity_list`)
+2. **`entity_count()` auto-tracking**: `rebuild()` automatically tracks entities (breaking change from v1.0.x)
+3. **Integer overflow protection**: Constructor caps cell reservation at 1M
+4. **`noexcept` specifications**: Added to `get_cell_coord()`, `wrap_cell()`, Morton functions
+5. **Removed broken deduction guide**: `EntityT` cannot be deduced from `grid_config`
+
+**Performance Improvements (Small Vector Optimization):**
+- Added `SmallCellSize` template parameter (default=16)
+- Custom `small_vector<T, N>` class for inline storage (lines 50-190)
+- 5-40% speedup across all operations:
+  - Rebuild: 40% faster
+  - Update: 5-11% faster
+  - Queries: 5-7% faster
+- Memory cost: +8*SmallCellSize bytes per cell
+- Tunable: Set `SmallCellSize=0` to disable, or increase for workloads with larger cells
+
+### Morton Encoding Limits
+- **2D**: ±2^31 cells per dimension (~2.1 billion)
+- **3D**: ±2^21 cells per dimension (~2.1 million)
+- **4D+**: Further reduced range
+- For `infinite` topology, coordinates beyond these limits will have hash collisions
+- Tested at actual boundaries in `test/test_limits.cpp`
+
+### Coordinate System
+World coordinates are centered at origin:
+```
+Position (x, y) → Cell coordinate:
+  cell[d] = floor((pos[d] + world_size[d]/2) / cell_size[d])
+
+Example: world_size=100, cell_size=10, pos=5
+  cell = floor((5 + 50) / 10) = floor(5.5) = 5
+```
 
 ## Boost Submission Considerations
 
-This library is being prepared for potential Boost submission. When making changes:
+This library is ready for Boost submission. Critical requirements met:
 
-1. **Maintain Generic Programming**: Must work for arbitrary dimensions, coordinate types, precision
-2. **Zero Overhead**: Template instantiations should compile to optimal code
-3. **Documentation**: Every public method needs complexity and exception safety docs
-4. **Testing**: Comprehensive coverage of edge cases
-5. **Portability**: C++20 compliant (GCC 10+, Clang 12+, MSVC 2019+)
+1. ✅ **Generic Programming**: Works for arbitrary dimensions, coordinate types, precision
+2. ✅ **Zero Overhead**: Template instantiations compile to optimal code
+3. ✅ **Documentation**: Every public method has complexity and exception safety docs
+4. ✅ **Comprehensive Testing**: 54 tests covering all behaviors, edge cases, exception safety
+5. ✅ **Portability**: C++20 compliant (GCC 10+, Clang 12+, MSVC 2019+)
+6. ✅ **No Dependencies**: Header-only, stdlib-only
+7. ✅ **Performance Validated**: Benchmarks verify all claims
+
+**Next Steps for Boost Submission:**
+- Review `docs/submission/boost-submission.md` for detailed checklist
+- Post to boost-users@lists.boost.org for initial feedback
+- Find review manager (coordinate via mailing list)
+- 10-day formal review process
 
 ## Performance Characteristics Reference
 
-| Operation | Complexity | Typical Time (10K entities) |
+| Operation | Complexity | Typical Time (10K entities, v1.1.0) |
 |-----------|-----------|---------------------------|
-| `rebuild()` | O(n) | ~1-2 ms |
-| `update()` | O(k), k ≈ 0.01n | ~0.2 ms (40x faster) |
-| `query_radius()` | O(m) cells queried | <1 ms |
-| `for_each_pair()` | O(c × k²) | ~5-10 ms |
+| `rebuild()` | O(n) | ~0.6-1 ms (40% faster than v1.0) |
+| `update()` | O(k), k = moved entities | ~0.2 ms (40x faster than rebuild when k<0.05n) |
+| `query_radius()` | O(m), m = entities in queried cells | <1 ms (5-7% faster than v1.0) |
+| `for_each_pair()` | O(c × k²), c = cells, k̄ = avg per cell | ~5-10 ms |
 
 Where:
 - n = total entities
@@ -314,9 +343,14 @@ Where:
 ## Related Documentation
 
 - `README.md`: User-facing documentation, quick start, examples
-- `docs/`: MkDocs documentation site (published to GitHub Pages)
-  - `docs/getting-started/tutorial.md`: Step-by-step guide for library users
+- `docs/`: MkDocs documentation site at https://spinoza.github.io/sparse_spatial_hash/
+  - `docs/getting-started/tutorial.md`: Step-by-step guide
   - `docs/api-reference/`: Complete API documentation
   - `docs/user-guide/`: In-depth usage guides
-- `PROJECT_SUMMARY.md`: Design decisions, extraction rationale, comparisons
+  - `docs/submission/boost-submission.md`: Boost submission checklist
+- `docs/development/test-review.md`: Comprehensive test suite analysis (40 pages)
+- `docs/development/test-summary.md`: Executive summary of test coverage
+- `docs/development/test-strategy.md`: Comprehensive test strategy documentation
+- `docs/development/project-summary.md`: Design decisions, extraction rationale, comparisons
+- `docs/performance/optimization-experiments.md`: Detailed analysis of v2/v3/v4 optimization attempts
 - Header comments: API reference with complexity guarantees
