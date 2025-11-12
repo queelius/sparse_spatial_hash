@@ -60,7 +60,7 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/queelius/sparse_spatial_hash
       name: GitHub Repository
-    - icon: fontawesome/solid/package
+    - icon: fontawesome/solid/cube
       link: https://github.com/microsoft/vcpkg
       name: Available on vcpkg
   analytics:
