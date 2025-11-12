@@ -9,7 +9,7 @@
  * - Zero-radius and edge case queries
  */
 
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <vector>
@@ -17,7 +17,7 @@
 #include <memory>
 #include <chrono>
 
-using namespace boost::spatial;
+using namespace spatial;
 
 // ============================================================================
 // Test 6: Custom Types with position_accessor
@@ -43,7 +43,7 @@ private:
 
 // Specialization for custom type
 template<>
-struct boost::spatial::position_accessor<PhysicsBody, 3> {
+struct spatial::position_accessor<PhysicsBody, 3> {
     static double get(const PhysicsBody& body, std::size_t dim) {
         return body.position()[dim];
     }
@@ -60,7 +60,7 @@ struct ParticleRef {
 };
 
 template<>
-struct boost::spatial::position_accessor<ParticleRef, 3> {
+struct spatial::position_accessor<ParticleRef, 3> {
     static float get(const ParticleRef& p, std::size_t dim) {
         return (*p.pos_ptr)[dim];
     }
@@ -164,7 +164,7 @@ struct PreciseEntity {
 };
 
 template<>
-struct boost::spatial::position_accessor<PreciseEntity, 3> {
+struct spatial::position_accessor<PreciseEntity, 3> {
     static double get(const PreciseEntity& e, std::size_t dim) {
         switch(dim) {
             case 0: return e.x;
@@ -267,7 +267,7 @@ struct SimpleParticle {
 };
 
 template<>
-struct boost::spatial::position_accessor<SimpleParticle, 3> {
+struct spatial::position_accessor<SimpleParticle, 3> {
     static float get(const SimpleParticle& p, std::size_t dim) {
         switch(dim) {
             case 0: return p.x;

@@ -2,13 +2,13 @@
  * Performance comparison: Original vs Optimized Implementation
  */
 
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 #include <boost/spatial/sparse_spatial_hash_optimized.hpp>
 #include <benchmark/benchmark.h>
 #include <vector>
 #include <random>
 
-using namespace boost::spatial;
+using namespace spatial;
 
 // ============================================================================
 // Test Particle Type
@@ -21,7 +21,7 @@ struct Particle {
 };
 
 template<>
-struct boost::spatial::position_accessor<Particle, 3> {
+struct spatial::position_accessor<Particle, 3> {
     static float get(const Particle& p, std::size_t dim) {
         switch(dim) {
             case 0: return p.x;
@@ -33,7 +33,7 @@ struct boost::spatial::position_accessor<Particle, 3> {
 };
 
 template<>
-struct boost::spatial::position_accessor<Particle, 2> {
+struct spatial::position_accessor<Particle, 2> {
     static float get(const Particle& p, std::size_t dim) {
         return dim == 0 ? p.x : p.y;
     }
@@ -88,7 +88,7 @@ static void BM_Build_3D_10K_Original(benchmark::State& state) {
     };
 
     for (auto _ : state) {
-        boost::spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
+        spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
         grid.rebuild(particles);
         benchmark::DoNotOptimize(grid);
     }
@@ -105,7 +105,7 @@ static void BM_Build_3D_10K_Optimized(benchmark::State& state) {
     };
 
     for (auto _ : state) {
-        boost::spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
+        spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
         grid.rebuild(particles);
         benchmark::DoNotOptimize(grid);
     }
@@ -125,7 +125,7 @@ static void BM_Update_Incremental_Original(benchmark::State& state) {
         .topology_type = topology::bounded
     };
 
-    boost::spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
+    spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
     grid.rebuild(particles);
 
     std::mt19937 rng(42);
@@ -153,7 +153,7 @@ static void BM_Update_Incremental_Optimized(benchmark::State& state) {
         .topology_type = topology::bounded
     };
 
-    boost::spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
+    spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
     grid.rebuild(particles);
 
     std::mt19937 rng(42);
@@ -185,7 +185,7 @@ static void BM_Query_Radius_Original(benchmark::State& state) {
         .topology_type = topology::bounded
     };
 
-    boost::spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
+    spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
     grid.rebuild(particles);
 
     std::mt19937 rng(42);
@@ -209,7 +209,7 @@ static void BM_Query_Radius_Optimized(benchmark::State& state) {
         .topology_type = topology::bounded
     };
 
-    boost::spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
+    spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
     grid.rebuild(particles);
 
     std::mt19937 rng(42);
@@ -238,7 +238,7 @@ static void BM_Topology_Toroidal_Original(benchmark::State& state) {
     };
 
     for (auto _ : state) {
-        boost::spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
+        spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
         grid.rebuild(particles);
         benchmark::DoNotOptimize(grid);
     }
@@ -255,7 +255,7 @@ static void BM_Topology_Toroidal_Optimized(benchmark::State& state) {
     };
 
     for (auto _ : state) {
-        boost::spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
+        spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
         grid.rebuild(particles);
         benchmark::DoNotOptimize(grid);
     }
@@ -275,7 +275,7 @@ static void BM_ForEachPair_Original(benchmark::State& state) {
         .topology_type = topology::bounded
     };
 
-    boost::spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
+    spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
     grid.rebuild(particles);
 
     for (auto _ : state) {
@@ -298,7 +298,7 @@ static void BM_ForEachPair_Optimized(benchmark::State& state) {
         .topology_type = topology::bounded
     };
 
-    boost::spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
+    spatial::sparse_spatial_hash<Particle, 3> grid(cfg);
     grid.rebuild(particles);
 
     for (auto _ : state) {

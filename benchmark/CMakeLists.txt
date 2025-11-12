@@ -18,7 +18,7 @@ FetchContent_MakeAvailable(googlebenchmark)
 add_executable(benchmark_sparse_hash benchmark_main.cpp)
 
 target_link_libraries(benchmark_sparse_hash PRIVATE
-    boost_sparse_spatial_hash::boost_sparse_spatial_hash
+    sparse_spatial_hash::sparse_spatial_hash
     benchmark::benchmark
 )
 

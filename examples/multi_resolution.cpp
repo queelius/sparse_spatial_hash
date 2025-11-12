@@ -5,7 +5,7 @@
  * for different types of queries (like game physics).
  */
 
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 #include <iostream>
 #include <vector>
 
@@ -15,7 +15,7 @@ struct GameObject {
 };
 
 template<>
-struct boost::spatial::position_accessor<GameObject, 3> {
+struct spatial::position_accessor<GameObject, 3> {
     static float get(const GameObject& obj, std::size_t dim) {
         switch(dim) {
             case 0: return obj.x;
@@ -27,7 +27,7 @@ struct boost::spatial::position_accessor<GameObject, 3> {
 };
 
 int main() {
-    using namespace boost::spatial;
+    using namespace spatial;
 
     std::cout << "=== Multi-Resolution Grid Hierarchy ===\n\n";
 

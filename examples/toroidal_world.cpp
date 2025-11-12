@@ -5,7 +5,7 @@
  * Particles wrap around edges like Pac-Man or Asteroids.
  */
 
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 #include <iostream>
 #include <vector>
 
@@ -15,14 +15,14 @@ struct Entity {
 };
 
 template<>
-struct boost::spatial::position_accessor<Entity, 2> {
+struct spatial::position_accessor<Entity, 2> {
     static float get(const Entity& e, std::size_t dim) {
         return dim == 0 ? e.x : e.y;
     }
 };
 
 int main() {
-    using namespace boost::spatial;
+    using namespace spatial;
 
     std::cout << "=== Toroidal Topology Demonstration ===\n\n";
 

@@ -9,7 +9,7 @@
  * - Move semantics and copy correctness
  */
 
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <vector>
@@ -18,7 +18,7 @@
 #include <ranges>
 #include <algorithm>
 
-using namespace boost::spatial;
+using namespace spatial;
 
 struct TestEntity {
     float x, y, z;
@@ -26,7 +26,7 @@ struct TestEntity {
 };
 
 template<>
-struct boost::spatial::position_accessor<TestEntity, 3> {
+struct spatial::position_accessor<TestEntity, 3> {
     static float get(const TestEntity& e, std::size_t dim) {
         switch(dim) {
             case 0: return e.x;
@@ -43,7 +43,7 @@ struct Entity2D {
 };
 
 template<>
-struct boost::spatial::position_accessor<Entity2D, 2> {
+struct spatial::position_accessor<Entity2D, 2> {
     static float get(const Entity2D& e, std::size_t dim) {
         return dim == 0 ? e.x : e.y;
     }

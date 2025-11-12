@@ -11,7 +11,7 @@
  *   ./collision_2d
  */
 
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 #include <vector>
 #include <iostream>
 #include <random>
@@ -40,7 +40,7 @@ struct Particle {
 
 // Specialize position accessor for Particle
 template<>
-struct boost::spatial::position_accessor<Particle, 2> {
+struct spatial::position_accessor<Particle, 2> {
     static float get(const Particle& p, std::size_t dim) {
         return dim == 0 ? p.x : p.y;
     }
@@ -99,7 +99,7 @@ void handle_collision(Particle& a, Particle& b, float world_size) {
 }
 
 int main() {
-    using namespace boost::spatial;
+    using namespace spatial;
 
     std::cout << "=== 2D Particle Collision Detection Demo ===\n\n";
 

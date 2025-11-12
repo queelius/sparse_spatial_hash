@@ -2,19 +2,19 @@
  * Topology tests using Catch2 - bounded, toroidal, infinite
  */
 
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <vector>
 #include <cmath>
 
-using namespace boost::spatial;
+using namespace spatial;
 
 struct Point2D {
     float x, y;
 };
 
 template<>
-struct boost::spatial::position_accessor<Point2D, 2> {
+struct spatial::position_accessor<Point2D, 2> {
     static float get(const Point2D& p, std::size_t dim) {
         return dim == 0 ? p.x : p.y;
     }

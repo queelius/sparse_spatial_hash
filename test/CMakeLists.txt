@@ -25,7 +25,7 @@ add_executable(test_sparse_hash
 )
 
 target_link_libraries(test_sparse_hash PRIVATE
-    boost_sparse_spatial_hash::boost_sparse_spatial_hash
+    sparse_spatial_hash::sparse_spatial_hash
     Catch2::Catch2WithMain
 )
 

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "sparse-spatial-hash",
+  "version": "1.2.0",
+  "description": "A generic N-dimensional sparse spatial hash grid for high-performance spatial indexing and neighbor queries with zero-overhead abstractions",
+  "homepage": "https://github.com/spinoza/sparse_spatial_hash",
+  "license": "BSL-1.0",
+  "supports": "!uwp",
+  "dependencies": []
+}

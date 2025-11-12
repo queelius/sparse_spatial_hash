@@ -1,10 +1,10 @@
-# Boost.Spatial - Sparse Spatial Hash Grid
+# Sparse Spatial Hash Grid
 
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.wikipedia.org/wiki/C%2B%2B20)
 [![License](https://img.shields.io/badge/license-Boost-blue.svg)](http://www.boost.org/LICENSE_1_0.txt)
 [![Header-Only](https://img.shields.io/badge/header--only-yes-green.svg)]()
 
-A **generic N-dimensional sparse spatial hash grid** for high-performance spatial indexing and neighbor queries. Designed for Boost/stdlib quality standards with zero-overhead abstractions.
+A **generic N-dimensional sparse spatial hash grid** for high-performance spatial indexing and neighbor queries. Designed to stdlib quality standards with zero-overhead abstractions.
 
 ## Features
 
@@ -21,7 +21,7 @@ A **generic N-dimensional sparse spatial hash grid** for high-performance spatia
 ## Quick Start
 
 ```cpp
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 #include <vector>
 
 struct Particle {
@@ -31,7 +31,7 @@ struct Particle {
 
 // Customize position extraction (one-time setup)
 template<>
-struct boost::spatial::position_accessor<Particle, 3> {
+struct spatial::position_accessor<Particle, 3> {
     static float get(const Particle& p, std::size_t dim) {
         switch(dim) {
             case 0: return p.x;
@@ -43,7 +43,7 @@ struct boost::spatial::position_accessor<Particle, 3> {
 };
 
 int main() {
-    using namespace boost::spatial;
+    using namespace spatial;
 
     // Create 3D toroidal grid (1000³ world, 10-unit cells)
     grid_config<3> cfg{
@@ -239,7 +239,7 @@ struct MyEntity {
 };
 
 template<>
-struct boost::spatial::position_accessor<MyEntity, 3> {
+struct spatial::position_accessor<MyEntity, 3> {
     static float get(const MyEntity& e, std::size_t dim) {
         return e.position[dim];
     }
@@ -297,10 +297,31 @@ grid_config<3> cfg{
 
 ## Building and Installation
 
-### Header-Only Library
+### Method 1: CMake FetchContent (Recommended)
+Add to your `CMakeLists.txt`:
+```cmake
+include(FetchContent)
+
+FetchContent_Declare(
+  sparse_spatial_hash
+  GIT_REPOSITORY https://github.com/spinoza/sparse_spatial_hash.git
+  GIT_TAG        v1.2.0  # Use the latest release tag
+)
+FetchContent_MakeAvailable(sparse_spatial_hash)
+
+target_link_libraries(your_target
+  PRIVATE sparse_spatial_hash::sparse_spatial_hash)
+```
+
+Then just include in your code:
+```cpp
+#include <spatial/sparse_spatial_hash.hpp>
+```
+
+### Method 2: Manual Installation
 ```bash
-# Simply copy the header to your include path
-cp -r include/boost/spatial /usr/local/include/boost/
+# Copy the header to your include path
+cp -r include/spatial /usr/local/include/
 
 # Or add to CMake:
 target_include_directories(your_target PUBLIC
@@ -308,11 +329,23 @@ target_include_directories(your_target PUBLIC
 )
 ```
 
-### CMake Integration
+### Method 3: vcpkg (Coming Soon)
+```bash
+vcpkg install sparse-spatial-hash
+```
+
+### Method 4: System Install
+```bash
+mkdir build && cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
+sudo cmake --install .
+```
+
+Then in your CMakeLists.txt:
 ```cmake
-# In your CMakeLists.txt
-find_package(boost_sparse_spatial_hash REQUIRED)
-target_link_libraries(your_target boost_sparse_spatial_hash::boost_sparse_spatial_hash)
+find_package(sparse_spatial_hash REQUIRED)
+target_link_libraries(your_target
+  PRIVATE sparse_spatial_hash::sparse_spatial_hash)
 ```
 
 ### Requirements

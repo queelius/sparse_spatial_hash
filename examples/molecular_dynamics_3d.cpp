@@ -11,7 +11,7 @@
  *   ./md_3d
  */
 
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 #include <vector>
 #include <iostream>
 #include <random>
@@ -43,7 +43,7 @@ struct Molecule {
 
 // Specialize position accessor
 template<>
-struct boost::spatial::position_accessor<Molecule, 3> {
+struct spatial::position_accessor<Molecule, 3> {
     static double get(const Molecule& m, std::size_t dim) {
         return m.position[dim];
     }
@@ -98,7 +98,7 @@ std::array<double, 3> lj_force(
 }
 
 int main() {
-    using namespace boost::spatial;
+    using namespace spatial;
 
     std::cout << "=== 3D Molecular Dynamics Demo ===\n\n";
 

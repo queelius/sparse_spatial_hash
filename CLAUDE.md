@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **header-only C++20 library** providing a generic N-dimensional sparse spatial hash grid for high-performance spatial indexing and neighbor queries. The library is designed to Boost/stdlib quality standards and is ready for Boost submission.
+This is a **header-only C++20 library** providing a generic N-dimensional sparse spatial hash grid for high-performance spatial indexing and neighbor queries. The library is designed to stdlib quality standards and is ready for public release.
 
 **Key Design Goals:**
 - Zero-overhead abstractions through generic programming
@@ -12,7 +12,7 @@ This is a **header-only C++20 library** providing a generic N-dimensional sparse
 - Fills genuine gap in C++ ecosystem (no existing hash-based sparse spatial grids)
 - Production-tested (extracted from DigiStar physics engine handling 10M+ particles)
 
-**Current Status:** v1.1.0 - Boost Submission Ready
+**Current Status:** v1.1.0 - Public Release Ready
 - 54 comprehensive tests, 326 assertions, 100% pass rate
 - All documented behaviors verified
 - Exception safety guaranteed and tested
@@ -82,7 +82,7 @@ make -j
 
 ### Core Design Philosophy
 
-**Header-Only Template Library**: The entire library is in `include/boost/spatial/sparse_spatial_hash.hpp` (~970 lines). This is intentional:
+**Header-Only Template Library**: The entire library is in `include/spatial/sparse_spatial_hash.hpp` (~970 lines). This is intentional:
 - Template-heavy code benefits from cross-translation-unit inlining
 - Zero-overhead generic programming requires visibility at instantiation
 - No linking required for users
@@ -171,7 +171,7 @@ When writing tests for new entity types, always specialize `position_accessor`:
 struct MyEntity { glm::vec3 pos; };
 
 template<>
-struct boost::spatial::position_accessor<MyEntity, 3> {
+struct spatial::position_accessor<MyEntity, 3> {
     static float get(const MyEntity& e, std::size_t dim) {
         return e.pos[dim];
     }
@@ -306,23 +306,29 @@ Example: world_size=100, cell_size=10, pos=5
   cell = floor((5 + 50) / 10) = floor(5.5) = 5
 ```
 
-## Boost Submission Considerations
+## Distribution and Installation
 
-This library is ready for Boost submission. Critical requirements met:
+This library is production-ready and available through multiple installation methods:
 
-1. ✅ **Generic Programming**: Works for arbitrary dimensions, coordinate types, precision
-2. ✅ **Zero Overhead**: Template instantiations compile to optimal code
-3. ✅ **Documentation**: Every public method has complexity and exception safety docs
-4. ✅ **Comprehensive Testing**: 54 tests covering all behaviors, edge cases, exception safety
-5. ✅ **Portability**: C++20 compliant (GCC 10+, Clang 12+, MSVC 2019+)
-6. ✅ **No Dependencies**: Header-only, stdlib-only
-7. ✅ **Performance Validated**: Benchmarks verify all claims
+**CMake FetchContent (Recommended):**
+```cmake
+include(FetchContent)
+FetchContent_Declare(
+  sparse_spatial_hash
+  GIT_REPOSITORY https://github.com/spinoza/sparse_spatial_hash.git
+  GIT_TAG        v1.2.0
+)
+FetchContent_MakeAvailable(sparse_spatial_hash)
+target_link_libraries(your_target PRIVATE sparse_spatial_hash::sparse_spatial_hash)
+```
 
-**Next Steps for Boost Submission:**
-- Review `docs/submission/boost-submission.md` for detailed checklist
-- Post to boost-users@lists.boost.org for initial feedback
-- Find review manager (coordinate via mailing list)
-- 10-day formal review process
+**vcpkg (Coming Soon):**
+```bash
+vcpkg install sparse-spatial-hash
+```
+
+**Manual Installation:**
+Simply copy `include/spatial/` to your include path, or use CMake's install target.
 
 ## Performance Characteristics Reference
 
@@ -347,7 +353,7 @@ Where:
   - `docs/getting-started/tutorial.md`: Step-by-step guide
   - `docs/api-reference/`: Complete API documentation
   - `docs/user-guide/`: In-depth usage guides
-  - `docs/submission/boost-submission.md`: Boost submission checklist
+  - `docs/submission/boost-submission.md`: public release checklist
 - `docs/development/test-review.md`: Comprehensive test suite analysis (40 pages)
 - `docs/development/test-summary.md`: Executive summary of test coverage
 - `docs/development/test-strategy.md`: Comprehensive test strategy documentation

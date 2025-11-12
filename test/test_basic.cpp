@@ -4,12 +4,12 @@
  * Tests fundamental operations: construction, insertion, queries
  */
 
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <vector>
 
-using namespace boost::spatial;
+using namespace spatial;
 
 // Simple test particle
 struct Particle {
@@ -19,7 +19,7 @@ struct Particle {
 
 // Position accessor for 3D
 template<>
-struct boost::spatial::position_accessor<Particle, 3> {
+struct spatial::position_accessor<Particle, 3> {
     static float get(const Particle& p, std::size_t dim) {
         switch(dim) {
             case 0: return p.x;
@@ -32,7 +32,7 @@ struct boost::spatial::position_accessor<Particle, 3> {
 
 // Position accessor for 2D
 template<>
-struct boost::spatial::position_accessor<Particle, 2> {
+struct spatial::position_accessor<Particle, 2> {
     static float get(const Particle& p, std::size_t dim) {
         return dim == 0 ? p.x : p.y;
     }

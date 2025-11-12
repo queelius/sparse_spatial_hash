@@ -9,7 +9,7 @@
  * - Multi-dimensional support (4D+)
  */
 
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <vector>
@@ -18,7 +18,7 @@
 #include <algorithm>
 #include <cmath>
 
-using namespace boost::spatial;
+using namespace spatial;
 
 // 2D entity for testing
 struct Entity2D {
@@ -27,7 +27,7 @@ struct Entity2D {
 };
 
 template<>
-struct boost::spatial::position_accessor<Entity2D, 2> {
+struct spatial::position_accessor<Entity2D, 2> {
     static float get(const Entity2D& e, std::size_t dim) {
         return dim == 0 ? e.x : e.y;
     }
@@ -40,7 +40,7 @@ struct Entity4D {
 };
 
 template<>
-struct boost::spatial::position_accessor<Entity4D, 4> {
+struct spatial::position_accessor<Entity4D, 4> {
     static float get(const Entity4D& e, std::size_t dim) {
         return e.pos[dim];
     }

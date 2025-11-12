@@ -2,11 +2,11 @@
  * Query operation tests using Catch2
  */
 
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <vector>
 
-using namespace boost::spatial;
+using namespace spatial;
 
 struct Entity {
     float x, y, z;
@@ -14,7 +14,7 @@ struct Entity {
 };
 
 template<>
-struct boost::spatial::position_accessor<Entity, 3> {
+struct spatial::position_accessor<Entity, 3> {
     static float get(const Entity& e, std::size_t dim) {
         switch(dim) {
             case 0: return e.x;

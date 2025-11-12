@@ -1,0 +1,5 @@
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/sparse_spatial_hash-targets.cmake")
+
+check_required_components(sparse_spatial_hash)

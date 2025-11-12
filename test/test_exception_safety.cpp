@@ -7,12 +7,12 @@
  * - Bulk operations: Basic guarantee
  */
 
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <vector>
 #include <stdexcept>
 
-using namespace boost::spatial;
+using namespace spatial;
 
 struct Particle {
     float x, y, z;
@@ -20,7 +20,7 @@ struct Particle {
 };
 
 template<>
-struct boost::spatial::position_accessor<Particle, 3> {
+struct spatial::position_accessor<Particle, 3> {
     static float get(const Particle& p, std::size_t dim) {
         switch(dim) {
             case 0: return p.x;
@@ -32,7 +32,7 @@ struct boost::spatial::position_accessor<Particle, 3> {
 };
 
 template<>
-struct boost::spatial::position_accessor<Particle, 2> {
+struct spatial::position_accessor<Particle, 2> {
     static float get(const Particle& p, std::size_t dim) {
         return dim == 0 ? p.x : p.y;
     }

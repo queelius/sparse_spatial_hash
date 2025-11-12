@@ -4,13 +4,13 @@
  * Measures key operations and compares against naive approaches.
  */
 
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 #include <benchmark/benchmark.h>
 #include <vector>
 #include <random>
 #include <unordered_map>
 
-using namespace boost::spatial;
+using namespace spatial;
 
 // ============================================================================
 // Test Particle Type
@@ -23,7 +23,7 @@ struct Particle {
 };
 
 template<>
-struct boost::spatial::position_accessor<Particle, 3> {
+struct spatial::position_accessor<Particle, 3> {
     static float get(const Particle& p, std::size_t dim) {
         switch(dim) {
             case 0: return p.x;
@@ -35,7 +35,7 @@ struct boost::spatial::position_accessor<Particle, 3> {
 };
 
 template<>
-struct boost::spatial::position_accessor<Particle, 2> {
+struct spatial::position_accessor<Particle, 2> {
     static float get(const Particle& p, std::size_t dim) {
         return dim == 0 ? p.x : p.y;
     }
