@@ -27,7 +27,7 @@ The library needs to know how to extract position from your entity:
 
 ```cpp
 template<>
-struct boost::spatial::position_accessor<Particle, 3> {
+struct spatial::position_accessor<Particle, 3> {
     static float get(const Particle& p, std::size_t dim) {
         switch(dim) {
             case 0: return p.x;
@@ -50,7 +50,7 @@ struct Particle {
 ### Step 3: Configure the Grid
 
 ```cpp
-using namespace boost::spatial;
+using namespace spatial;
 
 grid_config<3> cfg{
     .cell_size = {10.0f, 10.0f, 10.0f},      // 10-unit cells

@@ -7,11 +7,11 @@ Get up and running with Boost.Spatial in **5 minutes**!
 ### Step 1: Include the Header
 
 ```cpp
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 #include <vector>
 #include <iostream>
 
-using namespace boost::spatial;
+using namespace spatial;
 ```
 
 ### Step 2: Define Your Entity
@@ -29,7 +29,7 @@ struct Particle {
 ```cpp
 // Specialize the position_accessor for your entity type
 template<>
-struct boost::spatial::position_accessor<Particle, 2> {
+struct spatial::position_accessor<Particle, 2> {
     static float get(const Particle& p, std::size_t dim) {
         return dim == 0 ? p.x : p.y;
     }
@@ -160,13 +160,13 @@ for (int frame = 0; frame < 100; ++frame) {
 ## Complete Example
 
 ```cpp
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 #include <vector>
 #include <iostream>
 #include <cmath>
 #include <cstdlib>
 
-using namespace boost::spatial;
+using namespace spatial;
 
 struct Particle {
     float x, y;
@@ -175,7 +175,7 @@ struct Particle {
 };
 
 template<>
-struct boost::spatial::position_accessor<Particle, 2> {
+struct spatial::position_accessor<Particle, 2> {
     static float get(const Particle& p, std::size_t dim) {
         return dim == 0 ? p.x : p.y;
     }

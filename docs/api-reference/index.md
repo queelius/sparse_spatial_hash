@@ -17,8 +17,8 @@ Complete API documentation for Boost.Spatial - Sparse Spatial Hash.
 ## Quick Reference
 
 ```cpp
-#include <boost/spatial/sparse_spatial_hash.hpp>
-using namespace boost::spatial;
+#include <spatial/sparse_spatial_hash.hpp>
+using namespace spatial;
 
 // Configuration
 grid_config<3> cfg{...};

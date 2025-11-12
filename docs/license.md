@@ -60,8 +60,8 @@ By contributing to this project, you agree to license your contributions under t
 If you have questions about licensing, please:
 
 1. Review the [official Boost License FAQ](https://www.boost.org/users/license.html)
-2. Open an issue on [GitHub](https://github.com/spinoza/sparse_spatial_hash/issues)
+2. Open an issue on [GitHub](https://github.com/queelius/sparse_spatial_hash/issues)
 
 ---
 
-[View Full License Text](https://github.com/spinoza/sparse_spatial_hash/blob/main/LICENSE_1_0.txt){ .md-button }
+[View Full License Text](https://github.com/queelius/sparse_spatial_hash/blob/main/LICENSE_1_0.txt){ .md-button }

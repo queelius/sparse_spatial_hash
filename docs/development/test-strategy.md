@@ -552,4 +552,4 @@ The suite has grown from **16 to 31 test cases** (+94%), with **~197 assertions*
 
 *Generated: 2025-10-20*
 *Author: Claude (Anthropic AI)*
-*Library: boost::spatial::sparse_spatial_hash*
+*Library: spatial::sparse_spatial_hash*

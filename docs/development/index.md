@@ -13,7 +13,7 @@ Information for contributors and developers working on the library itself.
 
 ```bash
 # Clone repository
-git clone https://github.com/spinoza/sparse_spatial_hash.git
+git clone https://github.com/queelius/sparse_spatial_hash.git
 cd sparse_spatial_hash
 
 # Build everything

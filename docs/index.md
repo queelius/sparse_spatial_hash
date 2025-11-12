@@ -1,15 +1,16 @@
-# Boost.Spatial - Sparse Spatial Hash Grid
+# Sparse Spatial Hash Grid
 
 <div align="center">
 
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.wikipedia.org/wiki/C%2B%2B20)
-[![License](https://img.shields.io/badge/license-Boost-blue.svg)](http://www.boost.org/LICENSE_1_0.txt)
+[![License](https://img.shields.io/badge/license-BSL--1.0-blue.svg)](http://www.boost.org/LICENSE_1_0.txt)
 [![Header-Only](https://img.shields.io/badge/header--only-yes-green.svg)]()
+[![vcpkg](https://img.shields.io/badge/vcpkg-available-brightgreen.svg)](https://github.com/microsoft/vcpkg)
 
 **A generic N-dimensional sparse spatial hash grid for high-performance spatial indexing**
 
 [Get Started](getting-started/installation.md){ .md-button .md-button--primary }
-[View on GitHub](https://github.com/spinoza/sparse_spatial_hash){ .md-button }
+[View on GitHub](https://github.com/queelius/sparse_spatial_hash){ .md-button }
 
 </div>
 
@@ -17,7 +18,7 @@
 
 ## Overview
 
-`sparse_spatial_hash` is a **production-ready, Boost-quality C++20 library** providing high-performance spatial indexing through sparse hash-based grids. Extracted from the [DigiStar](https://github.com/spinoza/digistar) physics engine where it enables efficient collision detection and force calculations for 10M+ particle simulations.
+`sparse_spatial_hash` is a **production-ready C++20 library** providing high-performance spatial indexing through sparse hash-based grids. Extracted from the [DigiStar](https://github.com/spinoza/digistar) physics engine where it enables efficient collision detection and force calculations for 10M+ particle simulations.
 
 ## Key Features
 
@@ -81,7 +82,7 @@
 ## Quick Example
 
 ```cpp
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 #include <vector>
 
 struct Particle {
@@ -91,7 +92,7 @@ struct Particle {
 
 // Customize position extraction (one-time setup)
 template<>
-struct boost::spatial::position_accessor<Particle, 3> {
+struct spatial::position_accessor<Particle, 3> {
     static float get(const Particle& p, std::size_t dim) {
         switch(dim) {
             case 0: return p.x;
@@ -103,7 +104,7 @@ struct boost::spatial::position_accessor<Particle, 3> {
 };
 
 int main() {
-    using namespace boost::spatial;
+    using namespace spatial;
 
     // Create 3D toroidal grid (1000³ world, 10-unit cells)
     grid_config<3> cfg{
@@ -191,7 +192,7 @@ From DigiStar physics engine (10M particles, 10000³ world):
 
 ## Why Sparse Hash?
 
-### vs. R-tree (Boost.Geometry)
+### vs. R-tree
 ✓ Faster insertions (O(1) vs O(log n))
 ✓ Simpler incremental updates (no tree rebalancing)
 ✓ Better for dynamic scenes
@@ -214,7 +215,7 @@ From DigiStar physics engine (10M particles, 10000³ world):
 
 ## Design Principles
 
-Built to **Boost quality standards** with focus on:
+Built to **production quality standards** with focus on:
 
 - **Zero-overhead abstractions** through generic programming
 - **STL compatibility** (ranges, concepts, algorithms)
@@ -270,10 +271,9 @@ Built to **Boost quality standards** with focus on:
 
 ## Community
 
-- **GitHub**: [spinoza/sparse_spatial_hash](https://github.com/spinoza/sparse_spatial_hash)
-- **Issues**: [Report bugs or request features](https://github.com/spinoza/sparse_spatial_hash/issues)
-- **Discussions**: [Ask questions](https://github.com/spinoza/sparse_spatial_hash/discussions)
-- **Boost Submission**: [Learn about submission process](submission/boost-submission.md)
+- **GitHub**: [spinoza/sparse_spatial_hash](https://github.com/queelius/sparse_spatial_hash)
+- **Issues**: [Report bugs or request features](https://github.com/queelius/sparse_spatial_hash/issues)
+- **Discussions**: [Ask questions](https://github.com/queelius/sparse_spatial_hash/discussions)
 
 ## Acknowledgments
 
@@ -282,7 +282,7 @@ Extracted from the [DigiStar](https://github.com/spinoza/digistar) physics engin
 Inspired by:
 
 - Teschner et al. "Optimized Spatial Hashing for Collision Detection" (2003)
-- Boost.Geometry spatial indexing
+- R-tree spatial indexing (Boost.Geometry)
 - Morton encoding for cache-friendly iteration
 
 ---
@@ -292,6 +292,6 @@ Inspired by:
 **Ready to supercharge your spatial queries?**
 
 [Get Started Now](getting-started/installation.md){ .md-button .md-button--primary }
-[View Examples](https://github.com/spinoza/sparse_spatial_hash/tree/main/examples){ .md-button }
+[View Examples](https://github.com/queelius/sparse_spatial_hash/tree/main/examples){ .md-button }
 
 </div>

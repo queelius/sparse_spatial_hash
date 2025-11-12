@@ -257,7 +257,7 @@ target_link_libraries(your_app boost_sparse_spatial_hash::boost_sparse_spatial_h
 
 ### Manual Include
 ```cpp
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 ```
 
 ### Build Options

@@ -72,7 +72,7 @@ If you're familiar with R-trees, octrees, or other spatial structures:
 
     Full working examples on GitHub
 
-    [View Examples](https://github.com/spinoza/sparse_spatial_hash/tree/main/examples){ .md-button }
+    [View Examples](https://github.com/queelius/sparse_spatial_hash/tree/main/examples){ .md-button }
 
 </div>
 
@@ -142,8 +142,8 @@ Need help? Here's where to go:
 
 - **API Questions**: See [API Reference](../api-reference/index.md)
 - **Performance Questions**: See [Performance Guide](../performance/index.md)
-- **Bug Reports**: [GitHub Issues](https://github.com/spinoza/sparse_spatial_hash/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/spinoza/sparse_spatial_hash/discussions)
+- **Bug Reports**: [GitHub Issues](https://github.com/queelius/sparse_spatial_hash/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/queelius/sparse_spatial_hash/discussions)
 
 ## Ready to Begin?
 

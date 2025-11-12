@@ -1,6 +1,6 @@
 # Installation
 
-Boost.Spatial - Sparse Spatial Hash is a **header-only library** requiring no compilation or linking. Simply include the header and start using it!
+Sparse Spatial Hash is a **header-only library** requiring no compilation or linking. Simply include the header and start using it!
 
 ## Requirements
 
@@ -25,17 +25,17 @@ Copy the header file to your project:
 
 ```bash
 # Clone the repository
-git clone https://github.com/spinoza/sparse_spatial_hash.git
+git clone https://github.com/queelius/sparse_spatial_hash.git
 
 # Copy header to your include path
-cp sparse_spatial_hash/include/boost/spatial/sparse_spatial_hash.hpp \
-   /your/project/include/boost/spatial/
+cp sparse_spatial_hash/include/spatial/sparse_spatial_hash.hpp \
+   /your/project/include/spatial/
 ```
 
 Then in your code:
 
 ```cpp
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 ```
 
 ### Method 2: CMake FetchContent (Recommended)
@@ -50,7 +50,7 @@ include(FetchContent)
 
 FetchContent_Declare(
     sparse_spatial_hash
-    GIT_REPOSITORY https://github.com/spinoza/sparse_spatial_hash.git
+    GIT_REPOSITORY https://github.com/queelius/sparse_spatial_hash.git
     GIT_TAG        main  # or specific version tag
 )
 
@@ -77,7 +77,7 @@ target_compile_features(my_app PRIVATE cxx_std_20)
 
 ```bash
 # Add as submodule
-git submodule add https://github.com/spinoza/sparse_spatial_hash.git external/sparse_spatial_hash
+git submodule add https://github.com/queelius/sparse_spatial_hash.git external/sparse_spatial_hash
 git submodule update --init --recursive
 ```
 
@@ -94,7 +94,7 @@ target_link_libraries(my_app PRIVATE sparse_spatial_hash::sparse_spatial_hash)
 
 ```bash
 # Clone and install
-git clone https://github.com/spinoza/sparse_spatial_hash.git
+git clone https://github.com/queelius/sparse_spatial_hash.git
 cd sparse_spatial_hash
 mkdir build && cd build
 cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
@@ -110,7 +110,7 @@ Then use with `find_package` (Method 3).
 Create `test.cpp`:
 
 ```cpp
-#include <boost/spatial/sparse_spatial_hash.hpp>
+#include <spatial/sparse_spatial_hash.hpp>
 #include <iostream>
 #include <vector>
 
@@ -119,7 +119,7 @@ struct Point {
 };
 
 int main() {
-    using namespace boost::spatial;
+    using namespace spatial;
 
     grid_config<2> cfg{
         .cell_size = {10.0f, 10.0f},
@@ -185,7 +185,7 @@ sparse-spatial-hash/1.0.0
 To build and run the example programs:
 
 ```bash
-git clone https://github.com/spinoza/sparse_spatial_hash.git
+git clone https://github.com/queelius/sparse_spatial_hash.git
 cd sparse_spatial_hash
 mkdir build && cd build
 cmake .. -DBUILD_EXAMPLES=ON
@@ -297,6 +297,6 @@ Now proceed to:
 
 Having installation issues?
 
-- Check [GitHub Issues](https://github.com/spinoza/sparse_spatial_hash/issues)
-- Ask in [Discussions](https://github.com/spinoza/sparse_spatial_hash/discussions)
+- Check [GitHub Issues](https://github.com/queelius/sparse_spatial_hash/issues)
+- Ask in [Discussions](https://github.com/queelius/sparse_spatial_hash/discussions)
 - Review [Troubleshooting Guide](../development/building.md#troubleshooting)
