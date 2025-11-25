@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(sparse_spatial_hash VERSION 1.2.0 LANGUAGES CXX)
+project(sparse_spatial_hash VERSION 2.0.0 LANGUAGES CXX)
 
 # C++20 required
 set(CMAKE_CXX_STANDARD 20)

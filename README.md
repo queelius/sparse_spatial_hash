@@ -304,8 +304,8 @@ include(FetchContent)
 
 FetchContent_Declare(
   sparse_spatial_hash
-  GIT_REPOSITORY https://github.com/spinoza/sparse_spatial_hash.git
-  GIT_TAG        v1.2.0  # Use the latest release tag
+  GIT_REPOSITORY https://github.com/queelius/sparse_spatial_hash.git
+  GIT_TAG        v2.0.0  # Use the latest release tag
 )
 FetchContent_MakeAvailable(sparse_spatial_hash)
 
@@ -386,7 +386,7 @@ Compares against:
 
 ## Documentation
 
-Full documentation is available at: **https://spinoza.github.io/sparse_spatial_hash/**
+Full documentation is available at: **https://queelius.github.io/sparse_spatial_hash/**
 
 - **Tutorial**: Getting started guide with examples
 - **API Reference**: Complete API documentation
@@ -448,6 +448,6 @@ Inspired by:
 ---
 
 **Status**: Production-ready, extracted from battle-tested physics engine
-**Version**: 1.0.0
+**Version**: 2.0.0
 **Author**: Alex Towell (PhD Student, CS, SIU)
-**Contact**: lex@metafunctor.com | github.com/spinoza/sparse_spatial_hash
+**Contact**: lex@metafunctor.com | github.com/queelius/sparse_spatial_hash

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **header-only C++20 library** providing a generic N-dimensional sparse spatial hash grid for high-performance spatial indexing and neighbor queries. The library is designed to stdlib quality standards and is ready for public release.
+This is a **header-only C++20 library** providing a generic N-dimensional sparse spatial hash grid for high-performance spatial indexing and neighbor queries. The library is designed to stdlib quality standards and is publicly released.
 
 **Key Design Goals:**
 - Zero-overhead abstractions through generic programming
@@ -12,11 +12,11 @@ This is a **header-only C++20 library** providing a generic N-dimensional sparse
 - Fills genuine gap in C++ ecosystem (no existing hash-based sparse spatial grids)
 - Production-tested (extracted from DigiStar physics engine handling 10M+ particles)
 
-**Current Status:** v1.1.0 - Public Release Ready
+**Current Status:** v2.0.0 - Public Release
+- GitHub: https://github.com/queelius/sparse_spatial_hash
+- vcpkg: PR #48244 pending (all 18 CI platforms passing)
 - 54 comprehensive tests, 326 assertions, 100% pass rate
-- All documented behaviors verified
 - Exception safety guaranteed and tested
-- Morton encoding limits documented and tested
 - Small vector optimization: 5-40% performance improvement
 
 ## Build System Commands
@@ -270,25 +270,6 @@ Required test coverage:
 
 ## Critical Implementation Details
 
-### Recent Changes (v1.1.0)
-
-**Bug Fixes:**
-1. **`cell_entities()` return type**: Now returns consistent view type (uses static `entity_list`)
-2. **`entity_count()` auto-tracking**: `rebuild()` automatically tracks entities (breaking change from v1.0.x)
-3. **Integer overflow protection**: Constructor caps cell reservation at 1M
-4. **`noexcept` specifications**: Added to `get_cell_coord()`, `wrap_cell()`, Morton functions
-5. **Removed broken deduction guide**: `EntityT` cannot be deduced from `grid_config`
-
-**Performance Improvements (Small Vector Optimization):**
-- Added `SmallCellSize` template parameter (default=16)
-- Custom `small_vector<T, N>` class for inline storage (lines 50-190)
-- 5-40% speedup across all operations:
-  - Rebuild: 40% faster
-  - Update: 5-11% faster
-  - Queries: 5-7% faster
-- Memory cost: +8*SmallCellSize bytes per cell
-- Tunable: Set `SmallCellSize=0` to disable, or increase for workloads with larger cells
-
 ### Morton Encoding Limits
 - **2D**: ±2^31 cells per dimension (~2.1 billion)
 - **3D**: ±2^21 cells per dimension (~2.1 million)
@@ -308,21 +289,21 @@ Example: world_size=100, cell_size=10, pos=5
 
 ## Distribution and Installation
 
-This library is production-ready and available through multiple installation methods:
+This library is publicly released and available through multiple installation methods:
 
 **CMake FetchContent (Recommended):**
 ```cmake
 include(FetchContent)
 FetchContent_Declare(
   sparse_spatial_hash
-  GIT_REPOSITORY https://github.com/spinoza/sparse_spatial_hash.git
-  GIT_TAG        v1.2.0
+  GIT_REPOSITORY https://github.com/queelius/sparse_spatial_hash.git
+  GIT_TAG        v2.0.0
 )
 FetchContent_MakeAvailable(sparse_spatial_hash)
 target_link_libraries(your_target PRIVATE sparse_spatial_hash::sparse_spatial_hash)
 ```
 
-**vcpkg (Coming Soon):**
+**vcpkg (Pending - PR #48244):**
 ```bash
 vcpkg install sparse-spatial-hash
 ```
@@ -349,14 +330,15 @@ Where:
 ## Related Documentation
 
 - `README.md`: User-facing documentation, quick start, examples
-- `docs/`: MkDocs documentation site at https://spinoza.github.io/sparse_spatial_hash/
+- `docs/`: MkDocs documentation site at https://queelius.github.io/sparse_spatial_hash/
   - `docs/getting-started/tutorial.md`: Step-by-step guide
   - `docs/api-reference/`: Complete API documentation
   - `docs/user-guide/`: In-depth usage guides
-  - `docs/submission/boost-submission.md`: public release checklist
+  - `docs/distribution/`: Installation and distribution information
 - `docs/development/test-review.md`: Comprehensive test suite analysis (40 pages)
 - `docs/development/test-summary.md`: Executive summary of test coverage
 - `docs/development/test-strategy.md`: Comprehensive test strategy documentation
 - `docs/development/project-summary.md`: Design decisions, extraction rationale, comparisons
 - `docs/performance/optimization-experiments.md`: Detailed analysis of v2/v3/v4 optimization attempts
+- `vcpkg-port/`: vcpkg port files (portfile.cmake, vcpkg.json, usage)
 - Header comments: API reference with complexity guarantees

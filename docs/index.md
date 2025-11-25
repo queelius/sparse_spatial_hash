@@ -271,7 +271,7 @@ Built to **production quality standards** with focus on:
 
 ## Community
 
-- **GitHub**: [spinoza/sparse_spatial_hash](https://github.com/queelius/sparse_spatial_hash)
+- **GitHub**: [queelius/sparse_spatial_hash](https://github.com/queelius/sparse_spatial_hash)
 - **Issues**: [Report bugs or request features](https://github.com/queelius/sparse_spatial_hash/issues)
 - **Discussions**: [Ask questions](https://github.com/queelius/sparse_spatial_hash/discussions)
 
