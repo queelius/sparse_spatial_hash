@@ -141,7 +141,7 @@ TEST_CASE("Custom types with position_accessor", "[types][custom][position_acces
 
         // WHEN: Processing pairs
         int pair_count = 0;
-        grid.for_each_pair(bodies, 20.0,
+        grid.for_each_pair(20.0,
             [&](std::size_t i, std::size_t j) {
                 pair_count++;
                 // Can access custom methods
@@ -407,7 +407,7 @@ TEST_CASE("Large-scale stress test (10K+ entities)", "[performance][stress][scal
         auto start = std::chrono::high_resolution_clock::now();
 
         int pair_count = 0;
-        grid.for_each_pair(particles, 30.0f,
+        grid.for_each_pair(30.0f,
             [&](std::size_t, std::size_t) { pair_count++; });
 
         auto end = std::chrono::high_resolution_clock::now();

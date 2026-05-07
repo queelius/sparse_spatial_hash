@@ -308,7 +308,7 @@ static void BM_ForEachPair_SparseHash(benchmark::State& state) {
 
     for (auto _ : state) {
         std::size_t pair_count = 0;
-        grid.for_each_pair(particles, 30.0f,
+        grid.for_each_pair(30.0f,
             [&](std::size_t i, std::size_t j) {
                 pair_count++;
                 // Simulate light work

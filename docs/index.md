@@ -125,7 +125,7 @@ int main() {
     auto neighbors = grid.query_radius(50.0f, 100.0f, 200.0f, 300.0f);
 
     // Process all pairs within 20 units
-    grid.for_each_pair(particles, 20.0f,
+    grid.for_each_pair(20.0f,
         [&](std::size_t i, std::size_t j) {
             // Compute interaction between particles[i] and particles[j]
         });

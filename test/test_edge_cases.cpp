@@ -3,36 +3,12 @@
  * Tests corner cases identified during pre-submission review
  */
 
-#include <spatial/sparse_spatial_hash.hpp>
+#include "test_helpers.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <vector>
+#include <stdexcept>
 
 using namespace spatial;
-
-// Simple test particle
-struct Particle {
-    float x, y, z;
-    int id;
-};
-
-template<>
-struct spatial::position_accessor<Particle, 3> {
-    static float get(const Particle& p, std::size_t dim) {
-        switch(dim) {
-            case 0: return p.x;
-            case 1: return p.y;
-            case 2: return p.z;
-            default: return 0.0f;
-        }
-    }
-};
-
-template<>
-struct spatial::position_accessor<Particle, 2> {
-    static float get(const Particle& p, std::size_t dim) {
-        return dim == 0 ? p.x : p.y;
-    }
-};
 
 TEST_CASE("cell_entities() with unoccupied cells", "[edge][cell_entities]") {
     grid_config<3> cfg{
@@ -156,7 +132,7 @@ TEST_CASE("Bounded topology near world edges", "[edge][bounded]") {
         grid.rebuild(particles);
 
         int pair_count = 0;
-        grid.for_each_pair(particles, 20.0f,
+        grid.for_each_pair(20.0f,
             [&](std::size_t i, std::size_t j) {
                 REQUIRE(i < j);  // No duplicates
                 pair_count++;
@@ -223,5 +199,63 @@ TEST_CASE("entity_count after various operations", "[edge][entity_count]") {
 
         grid.clear();
         REQUIRE(grid.entity_count() == 0);
+    }
+}
+
+TEST_CASE("Constructor rejects non-positive grid_config components", "[edge][validation]") {
+    SECTION("Zero cell_size throws invalid_argument") {
+        grid_config<3> cfg{
+            .cell_size = {10.0f, 0.0f, 10.0f},
+            .world_size = {100.0f, 100.0f, 100.0f},
+            .topology_type = topology::bounded
+        };
+        REQUIRE_THROWS_AS((sparse_spatial_hash<Particle, 3>(cfg)), std::invalid_argument);
+    }
+
+    SECTION("Negative cell_size throws invalid_argument") {
+        grid_config<2> cfg{
+            .cell_size = {-1.0f, 10.0f},
+            .world_size = {100.0f, 100.0f},
+            .topology_type = topology::bounded
+        };
+        REQUIRE_THROWS_AS((sparse_spatial_hash<Particle, 2>(cfg)), std::invalid_argument);
+    }
+
+    SECTION("Zero world_size throws invalid_argument") {
+        grid_config<2> cfg{
+            .cell_size = {10.0f, 10.0f},
+            .world_size = {100.0f, 0.0f},
+            .topology_type = topology::bounded
+        };
+        REQUIRE_THROWS_AS((sparse_spatial_hash<Particle, 2>(cfg)), std::invalid_argument);
+    }
+
+    SECTION("Negative world_size throws invalid_argument") {
+        grid_config<3> cfg{
+            .cell_size = {10.0f, 10.0f, 10.0f},
+            .world_size = {-100.0f, 100.0f, 100.0f},
+            .topology_type = topology::toroidal
+        };
+        REQUIRE_THROWS_AS((sparse_spatial_hash<Particle, 3>(cfg)), std::invalid_argument);
+    }
+
+    SECTION("All-positive config constructs successfully") {
+        grid_config<3> cfg{
+            .cell_size = {1.0f, 1.0f, 1.0f},
+            .world_size = {10.0f, 10.0f, 10.0f},
+            .topology_type = topology::bounded
+        };
+        REQUIRE_NOTHROW((sparse_spatial_hash<Particle, 3>(cfg)));
+    }
+
+    SECTION("World too small to round to a single cell throws") {
+        // world_size < cell_size/2 rounds to 0 cells; without validation this
+        // tripped a divide-by-zero in the reserve overflow guard.
+        grid_config<2> cfg{
+            .cell_size = {100.0f, 100.0f},
+            .world_size = {1.0f, 1.0f},
+            .topology_type = topology::bounded
+        };
+        REQUIRE_THROWS_AS((sparse_spatial_hash<Particle, 2>(cfg)), std::invalid_argument);
     }
 }

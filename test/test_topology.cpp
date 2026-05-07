@@ -6,6 +6,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <vector>
 #include <cmath>
+#include <map>
+#include <array>
 
 using namespace spatial;
 
@@ -280,5 +282,56 @@ TEST_CASE("Edge cases for topologies", "[topology][edge_cases]") {
 
         REQUIRE(grid.empty());
         REQUIRE(grid.cell_count() == 0);
+    }
+}
+
+TEST_CASE("Toroidal queries do not duplicate cells under large radius",
+          "[topology][toroidal][regression]") {
+    // Regression: when the query radius covered more than one wrap of the
+    // grid, iterate_recursive enumerated each unwrapped offset separately
+    // and several wrapped to the same cell, so callbacks fired multiple
+    // times. for_each_pair was the most affected (its "each pair at most
+    // once" contract was violated), but query_radius and for_each_in_radius
+    // also visited entities multiple times.
+    grid_config<2> cfg{
+        .cell_size = {10.0f, 10.0f},
+        .world_size = {30.0f, 30.0f},  // 3x3 grid
+        .topology_type = topology::toroidal
+    };
+    sparse_spatial_hash<Point2D, 2> grid(cfg);
+
+    // One particle per cell, 9 total.
+    std::vector<Point2D> points;
+    for (int x = 0; x < 3; ++x) {
+        for (int y = 0; y < 3; ++y) {
+            points.push_back({static_cast<float>(x * 10) + 1.0f,
+                              static_cast<float>(y * 10) + 1.0f});
+        }
+    }
+    grid.rebuild(points);
+
+    SECTION("for_each_in_radius visits each entity exactly once even when "
+            "radius spans the whole grid") {
+        std::vector<int> visit_count(points.size(), 0);
+        grid.for_each_in_radius(50.0f, std::array<float, 2>{15.0f, 15.0f},
+            [&](std::size_t idx) { visit_count[idx]++; });
+        for (int v : visit_count) {
+            REQUIRE(v == 1);
+        }
+    }
+
+    SECTION("for_each_pair emits each pair at most once even when radius "
+            "spans the whole grid") {
+        // Canonicalize order; the cross-cell loop does not guarantee i < j,
+        // only that (i, j) and (j, i) are not both emitted.
+        std::map<std::pair<std::size_t, std::size_t>, int> seen;
+        grid.for_each_pair(50.0f, [&](std::size_t i, std::size_t j) {
+            REQUIRE(i != j);
+            auto key = std::make_pair(std::min(i, j), std::max(i, j));
+            ++seen[key];
+        });
+        for (const auto& [pair, count] : seen) {
+            REQUIRE(count == 1);
+        }
     }
 }

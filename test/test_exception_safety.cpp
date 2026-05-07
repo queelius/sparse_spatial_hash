@@ -7,36 +7,12 @@
  * - Bulk operations: Basic guarantee
  */
 
-#include <spatial/sparse_spatial_hash.hpp>
+#include "test_helpers.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <vector>
 #include <stdexcept>
 
 using namespace spatial;
-
-struct Particle {
-    float x, y, z;
-    int id;
-};
-
-template<>
-struct spatial::position_accessor<Particle, 3> {
-    static float get(const Particle& p, std::size_t dim) {
-        switch(dim) {
-            case 0: return p.x;
-            case 1: return p.y;
-            case 2: return p.z;
-            default: return 0.0f;
-        }
-    }
-};
-
-template<>
-struct spatial::position_accessor<Particle, 2> {
-    static float get(const Particle& p, std::size_t dim) {
-        return dim == 0 ? p.x : p.y;
-    }
-};
 
 TEST_CASE("query_radius nothrow guarantee", "[exception_safety][nothrow][query]") {
     grid_config<3> cfg{
@@ -155,7 +131,7 @@ TEST_CASE("for_each_pair basic exception guarantee", "[exception_safety][basic_g
         int pairs_processed = 0;
 
         try {
-            grid.for_each_pair(particles, 20.0f,
+            grid.for_each_pair(20.0f,
                 [&](std::size_t i, std::size_t j) {
                     pairs_processed++;
                     if (pairs_processed == 3) {
@@ -187,7 +163,7 @@ TEST_CASE("for_each_pair basic exception guarantee", "[exception_safety][basic_g
         int callback_calls = 0;
         // Should not call callback on empty grid, so no exception
         REQUIRE_NOTHROW(
-            empty_grid.for_each_pair(empty, 20.0f,
+            empty_grid.for_each_pair(20.0f,
                 [&](std::size_t, std::size_t) {
                     callback_calls++;
                     throw std::runtime_error("Should not be called");

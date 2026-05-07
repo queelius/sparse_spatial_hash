@@ -4,39 +4,12 @@
  * Tests fundamental operations: construction, insertion, queries
  */
 
-#include <spatial/sparse_spatial_hash.hpp>
+#include "test_helpers.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <vector>
 
 using namespace spatial;
-
-// Simple test particle
-struct Particle {
-    float x, y, z;
-    int id;
-};
-
-// Position accessor for 3D
-template<>
-struct spatial::position_accessor<Particle, 3> {
-    static float get(const Particle& p, std::size_t dim) {
-        switch(dim) {
-            case 0: return p.x;
-            case 1: return p.y;
-            case 2: return p.z;
-            default: return 0.0f;
-        }
-    }
-};
-
-// Position accessor for 2D
-template<>
-struct spatial::position_accessor<Particle, 2> {
-    static float get(const Particle& p, std::size_t dim) {
-        return dim == 0 ? p.x : p.y;
-    }
-};
 
 TEST_CASE("Grid construction", "[basic][construction]") {
     grid_config<3> cfg{
@@ -216,10 +189,10 @@ TEST_CASE("For each pair", "[basic][pairs]") {
 
     SECTION("Count pairs within radius") {
         int pair_count = 0;
-        grid.for_each_pair(particles, 20.0f,
+        grid.for_each_pair(20.0f,
             [&](std::size_t i, std::size_t j) {
                 pair_count++;
-                REQUIRE(i < j);  // No duplicates, ordered
+                REQUIRE(i != j);  // No self-pairs; ordering of cross-cell pairs is unspecified
             });
 
         // Should find at least the (0,1) pair
@@ -232,7 +205,7 @@ TEST_CASE("For each pair", "[basic][pairs]") {
         empty_grid.rebuild(no_particles);
 
         int pair_count = 0;
-        empty_grid.for_each_pair(no_particles, 20.0f,
+        empty_grid.for_each_pair(20.0f,
             [&](std::size_t, std::size_t) { pair_count++; });
 
         REQUIRE(pair_count == 0);

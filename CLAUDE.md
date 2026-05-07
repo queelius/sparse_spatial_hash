@@ -14,8 +14,8 @@ This is a **header-only C++20 library** providing a generic N-dimensional sparse
 
 **Current Status:** v2.0.0 - Public Release
 - GitHub: https://github.com/queelius/sparse_spatial_hash
-- vcpkg: PR #48244 pending (all 18 CI platforms passing)
-- 54 comprehensive tests, 326 assertions, 100% pass rate
+- vcpkg port files in `vcpkg-port/` (note: root-level `vcpkg.json` may lag behind project version; check before submitting upstream)
+- 54 tests, 326 assertions (verify with `./test/test_sparse_hash --reporter compact`)
 - Exception safety guaranteed and tested
 - Small vector optimization: 5-40% performance improvement
 
@@ -112,7 +112,7 @@ make -j
    - Nearby cells in space = nearby in hash table
    - Improves cache efficiency during neighborhood queries
    - **Coordinate limits**: 2D: ±2^31 cells, 3D: ±2^21 cells, 4D+: further reduced
-   - Documented in header comments (lines 180-186)
+   - Documented in the `cell_hash` struct comments (search "Coordinate Range Limits")
 
 2. **Incremental Updates**: `update()` method tracks which entities changed cells
    - Only updates moved entities (typically <5% per frame)
@@ -214,7 +214,7 @@ Expected results for 10,000 particles (2D, 1000×1000 world, SmallCellSize=16):
 ## Common Development Tasks
 
 ### Adding a New Query Type
-1. Add public method in "Queries" section (line 540+)
+1. Add public method in the "Queries" section of `include/spatial/sparse_spatial_hash.hpp`
 2. Document complexity and exception safety guarantees
 3. Mark `const` and `noexcept` if appropriate
 4. Add test in `test/test_queries.cpp`
@@ -269,6 +269,14 @@ Required test coverage:
 - Use `[[nodiscard]]` for queries that return values
 
 ## Critical Implementation Details
+
+### Repository Quirks (Gotchas)
+
+- **`benchmark/benchmark_comparison.cpp` is dead code**: only `benchmark_main.cpp` is wired into `benchmark/CMakeLists.txt`. Add it explicitly if you need to build it.
+- **Test binary links OpenMP**: legacy from the failed v3 parallel optimization (see `docs/performance/optimization-experiments.md`). Build will fail on platforms without OpenMP unless `test/CMakeLists.txt` is patched.
+- **`vcpkg.json` at the repo root may lag**: it currently declares version 1.2.0 with the old `spinoza/sparse_spatial_hash` homepage; the canonical port is in `vcpkg-port/`. Sync before submitting upstream.
+- **Docs auto-deploy**: `.github/workflows/docs.yml` runs `mkdocs gh-deploy` on push to `main` when `docs/**`, `mkdocs.yml`, or `requirements.txt` change. `generate_docs.sh` is the local build helper.
+- **`paper/` at repo root**: contains the library's technical whitepaper (separate from `docs/`).
 
 ### Morton Encoding Limits
 - **2D**: ±2^31 cells per dimension (~2.1 billion)

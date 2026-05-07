@@ -111,7 +111,7 @@ Consider other data structures if you have:
 
 ```cpp
 // Collision detection
-grid.for_each_pair(entities, collision_radius,
+grid.for_each_pair(collision_radius,
     [](size_t i, size_t j) {
         resolve_collision(entities[i], entities[j]);
     });

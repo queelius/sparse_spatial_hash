@@ -146,7 +146,7 @@ TEST_CASE("for_each_pair() correctness - no duplicates with ordering", "[correct
 
         // WHEN: Processing pairs with large radius (all within same cell)
         int pair_count = 0;
-        grid.for_each_pair(entities, 50.0f,
+        grid.for_each_pair(50.0f,
             [&](std::size_t i, std::size_t j) {
                 pair_count++;
             });
@@ -170,7 +170,7 @@ TEST_CASE("for_each_pair() correctness - no duplicates with ordering", "[correct
         std::unordered_set<std::string> seen_pairs;
         bool has_duplicates = false;
 
-        grid.for_each_pair(entities, 20.0f,
+        grid.for_each_pair(20.0f,
             [&](std::size_t i, std::size_t j) {
                 // Create unique key for this pair
                 std::string key = std::to_string(std::min(i, j)) + "_" +
@@ -201,7 +201,7 @@ TEST_CASE("for_each_pair() correctness - no duplicates with ordering", "[correct
 
         // WHEN: Processing all pairs
         bool ordering_violated = false;
-        grid.for_each_pair(entities, 30.0f,
+        grid.for_each_pair(30.0f,
             [&](std::size_t i, std::size_t j) {
                 if (i >= j) {
                     ordering_violated = true;
@@ -229,7 +229,7 @@ TEST_CASE("for_each_pair() correctness - no duplicates with ordering", "[correct
 
         // WHEN: Collecting pairs from grid
         std::set<std::pair<std::size_t, std::size_t>> grid_pairs;
-        grid.for_each_pair(entities, radius,
+        grid.for_each_pair(radius,
             [&](std::size_t i, std::size_t j) {
                 grid_pairs.insert({i, j});
             });
@@ -540,7 +540,7 @@ TEST_CASE("4D+ dimension support", "[correctness][dimensions][4d][template]") {
 
         // WHEN: Processing pairs in 4D
         int pair_count = 0;
-        grid.for_each_pair(entities, 20.0f,
+        grid.for_each_pair(20.0f,
             [&](std::size_t i, std::size_t j) {
                 pair_count++;
                 REQUIRE(i < j);

@@ -22,22 +22,12 @@ add_executable(test_sparse_hash
     test_edge_cases.cpp
     test_exception_safety.cpp
     test_limits.cpp
+    test_v21_api.cpp
 )
 
 target_link_libraries(test_sparse_hash PRIVATE
     sparse_spatial_hash::sparse_spatial_hash
     Catch2::Catch2WithMain
-)
-
-# Enable OpenMP for v3 parallel tests
-target_compile_options(test_sparse_hash PRIVATE
-    $<$<CXX_COMPILER_ID:GNU,Clang>:-fopenmp>
-    $<$<CXX_COMPILER_ID:MSVC>:/openmp>
-)
-
-target_link_options(test_sparse_hash PRIVATE
-    $<$<CXX_COMPILER_ID:GNU,Clang>:-fopenmp>
-    $<$<CXX_COMPILER_ID:MSVC>:/openmp>
 )
 
 # Add to CTest - Catch2 provides automatic test discovery

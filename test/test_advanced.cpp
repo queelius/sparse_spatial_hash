@@ -159,7 +159,7 @@ TEST_CASE("Negative coordinates in infinite topology", "[topology][infinite][neg
 
         // WHEN: Processing pairs
         int pair_count = 0;
-        grid.for_each_pair(entities, 30.0f,
+        grid.for_each_pair(30.0f,
             [&](std::size_t i, std::size_t j) {
                 pair_count++;
                 REQUIRE(i < j);
@@ -421,7 +421,7 @@ TEST_CASE("STL compatibility with various containers", "[stl][containers][ranges
         grid.rebuild(entities);
 
         int pair_count = 0;
-        grid.for_each_pair(entities, 20.0f,
+        grid.for_each_pair(20.0f,
             [&](std::size_t, std::size_t) { pair_count++; });
 
         REQUIRE(pair_count >= 1);

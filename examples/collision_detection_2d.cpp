@@ -183,7 +183,7 @@ int main() {
         std::size_t frame_collisions = 0;
         std::size_t frame_checks = 0;
 
-        grid.for_each_pair(particles, collision_radius,
+        grid.for_each_pair(collision_radius,
             [&](std::size_t i, std::size_t j) {
                 frame_checks++;
                 float dist = distance(particles[i], particles[j], world_size);

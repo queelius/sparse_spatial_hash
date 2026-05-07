@@ -193,7 +193,7 @@ int main() {
         // 2. Calculate forces using spatial grid
         std::size_t pair_count = 0;
 
-        grid.for_each_pair(molecules, lj_params.cutoff * lj_params.sigma,
+        grid.for_each_pair(lj_params.cutoff * lj_params.sigma,
             [&](std::size_t i, std::size_t j) {
                 auto force = lj_force(molecules[i], molecules[j], lj_params, world_size);
 

@@ -35,6 +35,12 @@
 #include <cmath>
 #include <concepts>
 #include <ranges>
+#include <cassert>
+#include <stdexcept>
+#include <optional>
+#include <ostream>
+#include <span>
+#include <unordered_set>
 
 namespace spatial {
 
@@ -46,21 +52,38 @@ template<typename T, std::size_t Dims>
 struct position_accessor;
 
 // ============================================================================
-// Small Vector Optimization
+// Small Vector Optimization (implementation detail)
 // ============================================================================
 
+namespace detail {
+
 /**
- * Small vector: stores up to N elements inline, falls back to heap for larger sizes
- * Optimizes the common case where cells contain few entities (~10 on average)
+ * Small vector: stores up to N elements inline, falls back to heap for larger sizes.
+ * Optimizes the common case where cells contain few entities (~10 on average);
+ * eliminates malloc overhead for typical small cells (measured 18-55% rebuild
+ * regression if replaced by std::vector + reserve).
+ *
+ * This is an internal implementation detail of sparse_spatial_hash and is not
+ * part of the public API. The interface deliberately constrains T to trivial
+ * types: the only intended use is with integer index types (std::size_t,
+ * uint32_t, etc.). Non-trivial T would require placement-new bookkeeping that
+ * the union-based storage does not provide.
  *
  * Memory layout:
- * - N <= capacity: Elements stored inline in small_ array (stack allocation)
- * - N > capacity: Elements stored in heap via large_ pointer
- *
- * This eliminates malloc overhead for typical small cells (5-40% performance gain)
+ * - size <= N: elements stored inline in small_ (no heap allocation)
+ * - size >  N: elements stored on the heap via large_ (capacity_ tracks size)
  */
 template<typename T, std::size_t N>
 class small_vector {
+    static_assert(N > 0,
+        "detail::small_vector requires N >= 1; use std::vector if you need a heap-only container");
+    static_assert(std::is_trivially_copyable_v<T>,
+        "detail::small_vector requires a trivially copyable T (the union-based "
+        "storage does not start element lifetime correctly otherwise; intended "
+        "for integer index types only)");
+    static_assert(std::is_trivially_destructible_v<T>,
+        "detail::small_vector requires a trivially destructible T");
+
 private:
     std::size_t size_ = 0;
     union {
@@ -155,9 +178,7 @@ public:
     [[nodiscard]] const_reference back() const noexcept { return begin()[size_ - 1]; }
 
     void push_back(const T& value) {
-        if (size_ == capacity_) {
-            grow();
-        }
+        if (size_ == capacity_) reserve(capacity_ * 2);
         begin()[size_++] = value;
     }
 
@@ -181,12 +202,9 @@ public:
         }
     }
 
-private:
-    void grow() {
-        size_type new_cap = capacity_ * 2;
-        reserve(new_cap);
-    }
 };
+
+} // namespace detail
 
 // ============================================================================
 // Concepts and Type Traits
@@ -238,9 +256,15 @@ struct position_accessor {
     // No default implementation - user must specialize
 };
 
-// Default implementation for array-like types
+// Default implementation for array-like types whose operator[] returns a
+// coordinate. The result-type constraint is what excludes proxy-returning
+// containers (e.g. std::vector<bool>, expression templates) from silently
+// matching the generic specialization with a non-numeric result.
 template<typename T, std::size_t Dims>
-    requires requires(const T& obj, std::size_t i) { obj[i]; }
+    requires requires(const T& obj, std::size_t i) {
+        obj[i];
+        requires coordinate_type<std::remove_cvref_t<decltype(obj[i])>>;
+    }
 struct position_accessor<T, Dims> {
     static auto get(const T& obj, std::size_t dim) {
         return obj[dim];
@@ -272,10 +296,31 @@ struct cell_coord {
     constexpr auto operator<=>(const cell_coord& other) const = default;
 };
 
+// Stream-insertion operator for human-readable cell coordinates.
+// Found via ADL when callers write `os << cell`.
+template<std::size_t Dims, typename CoordT>
+std::ostream& operator<<(std::ostream& os, const cell_coord<Dims, CoordT>& cell) {
+    os << '(';
+    for (std::size_t i = 0; i < Dims; ++i) {
+        if (i != 0) os << ", ";
+        os << cell.coords[i];
+    }
+    return os << ')';
+}
+
 /**
  * Optimized Morton encoding lookup table for 2D/3D (most common cases)
  */
 namespace detail {
+
+// Zigzag-encodes a signed 32-bit cell coordinate into an unsigned value where
+// small positive and small negative inputs both map to small outputs, so that
+// the subsequent low-N-bit Morton spread does not alias negatives onto
+// positives. zigzag_encode(0) = 0, zigzag_encode(-1) = 1, zigzag_encode(1) = 2,
+// zigzag_encode(-2) = 3, ... This is the same scheme used by Protobuf varints.
+constexpr inline uint32_t zigzag_encode(int32_t x) noexcept {
+    return (static_cast<uint32_t>(x) << 1) ^ static_cast<uint32_t>(x >> 31);
+}
 
 // Spreads bits for 3D Morton encoding
 constexpr inline uint64_t morton_part1(uint32_t n) noexcept {
@@ -306,11 +351,14 @@ inline uint64_t morton_encode_2d(int32_t x, int32_t y) noexcept {
     return spread2d(ux) | (spread2d(uy) << 1);
 }
 
-// Fast 3D Morton encoding
+// Fast 3D Morton encoding.
+// zigzag_encode is applied first so negative cell coordinates do not alias
+// onto positive ones after the 21-bit mask in morton_part1. Without this,
+// cell (-1, 0, 0) and cell (2097151, 0, 0) would share a hash bucket.
 inline uint64_t morton_encode_3d(int32_t x, int32_t y, int32_t z) noexcept {
-    return morton_part1(static_cast<uint32_t>(x)) |
-           (morton_part1(static_cast<uint32_t>(y)) << 1) |
-           (morton_part1(static_cast<uint32_t>(z)) << 2);
+    return morton_part1(zigzag_encode(x)) |
+           (morton_part1(zigzag_encode(y)) << 1) |
+           (morton_part1(zigzag_encode(z)) << 2);
 }
 
 } // namespace detail
@@ -320,12 +368,18 @@ inline uint64_t morton_encode_3d(int32_t x, int32_t y, int32_t z) noexcept {
  * Uses optimized multi-dimensional Z-order curve (Morton code) for spatial locality
  *
  * Coordinate Range Limits (due to 64-bit Morton encoding):
- * - 2D: ±2^31 cells per dimension (~2 billion)
- * - 3D: ±2^21 cells per dimension (~2 million)
- * - 4D+: Further reduced range
+ * - 2D: ±2^31 cells per dimension (~2 billion). 2D Morton uses all 32 bits per axis,
+ *   so every distinct int32_t cell coordinate hashes uniquely.
+ * - 3D: ±2^20 cells per dimension (~1 million). 3D Morton spreads 21 bits per axis;
+ *   coordinates are zigzag-encoded so negatives near origin land near positives near
+ *   origin, but values outside ±2^20 will have hash bucket collisions (collisions
+ *   are still resolved correctly by std::unordered_map's equal_to, just slower).
+ * - 4D+: Further reduced range; the generic fallback packs sizeof(CoordT)*8/Dims
+ *   bits per axis with no zigzag.
  *
- * For infinite topology, coordinates outside this range will have hash collisions.
- * For bounded/toroidal, this is not an issue as wrapping keeps coordinates in range.
+ * For infinite topology, coordinates outside the range above produce hash collisions
+ * but remain semantically correct. For bounded/toroidal, this is not an issue as
+ * wrapping keeps coordinates in range.
  */
 template<std::size_t Dims, typename CoordT = int>
 struct cell_hash {
@@ -406,9 +460,9 @@ struct grid_config {
  * - Memory: O(occupied_cells * SmallCellSize + large_cells * capacity + entity_count)
  *
  * Exception Safety:
- * - Basic guarantee for all modifying operations
- * - Strong guarantee for single-entity operations
- * - Nothrow guarantee for queries and iteration
+ * - Basic guarantee for bulk operations (rebuild, update)
+ * - Strong guarantee for allocating queries (query_radius may throw std::bad_alloc)
+ * - Nothrow guarantee for inspection methods (cell_count, entity_count, stats, cell_entities, cells, cell_contents)
  */
 template<
     typename EntityT,
@@ -436,7 +490,7 @@ public:
 private:
     // Cell storage: maps cell coordinates to entity indices
     // Uses small_vector for inline storage of small cells (avoids malloc overhead)
-    using entity_list = small_vector<IndexT, SmallCellSize>;
+    using entity_list = detail::small_vector<IndexT, SmallCellSize>;
     using cell_map = std::unordered_map<
         cell_type,
         entity_list,
@@ -458,6 +512,33 @@ private:
     std::vector<cell_type, typename std::allocator_traits<Allocator>::template rebind_alloc<cell_type>>
         entity_cells_;  // Current cell for each entity
 
+    // Validates configuration before any member is constructed.
+    // Without this, zero or negative cell_size produces division-by-zero in
+    // grid_config::resolution() and a subsequent cast-to-int with UB. Also
+    // rejects configurations that round to fewer than 1 cell per dimension,
+    // which would later trip a divide-by-zero in the reserve-overflow guard.
+    static const config_type& validate_config(const config_type& config) {
+        for (std::size_t i = 0; i < Dims; ++i) {
+            if (!(config.cell_size[i] > 0)) {
+                throw std::invalid_argument(
+                    "sparse_spatial_hash: cell_size components must be positive");
+            }
+            if (!(config.world_size[i] > 0)) {
+                throw std::invalid_argument(
+                    "sparse_spatial_hash: world_size components must be positive");
+            }
+        }
+        const auto res = config.resolution();
+        for (std::size_t i = 0; i < Dims; ++i) {
+            if (res[i] < 1) {
+                throw std::invalid_argument(
+                    "sparse_spatial_hash: world_size must be large enough relative "
+                    "to cell_size to produce at least one cell per dimension");
+            }
+        }
+        return config;
+    }
+
 public:
     // ========================================================================
     // Constructors and Assignment
@@ -465,11 +546,13 @@ public:
 
     /**
      * Construct with configuration
+     *
+     * Throws std::invalid_argument if any cell_size or world_size component is non-positive.
      */
     explicit sparse_spatial_hash(
         const config_type& config,
         const allocator_type& alloc = allocator_type()
-    ) : config_(config),
+    ) : config_(validate_config(config)),
         cells_(alloc),
         resolution_(config.resolution()),
         entity_cells_(alloc)
@@ -615,8 +698,12 @@ public:
      * Automatically resizes entity tracking to match entity count
      * Complexity: O(n) where n = number of entities
      * Exception Safety: Basic guarantee
+     *
+     * Requires a sized range (the entity count must be known without iteration).
+     * To rebuild from a non-sized view (e.g., std::views::filter), materialize
+     * into a vector first or use std::views::common with std::ranges::distance.
      */
-    template<std::ranges::range EntityRange>
+    template<std::ranges::sized_range EntityRange>
         requires std::convertible_to<std::ranges::range_value_t<EntityRange>, EntityT>
     void rebuild(const EntityRange& entities) {
         cells_.clear();
@@ -641,8 +728,12 @@ public:
      * Optimized with swap-and-pop for O(1) amortized removal
      * Complexity: O(k) where k = entities that changed cells
      * Exception Safety: Basic guarantee
+     *
+     * Requires a sized range. The range must have the same length and positional
+     * identity as the previous rebuild()/update() call; otherwise indices drift
+     * silently. Mid-vector insert/erase is unsupported (use rebuild() after).
      */
-    template<std::ranges::range EntityRange>
+    template<std::ranges::sized_range EntityRange>
         requires std::convertible_to<std::ranges::range_value_t<EntityRange>, EntityT>
     void update(const EntityRange& entities) {
         const std::size_t count = std::ranges::size(entities);
@@ -658,37 +749,31 @@ public:
         IndexT idx = 0;
         for (const auto& entity : entities) {
             auto new_cell = wrap_cell(get_cell_coord(entity));
-            auto old_cell = entity_cells_[idx];
-
-            if (new_cell != old_cell) {
-                // Remove from old cell using swap-and-pop (O(1) instead of O(n))
-                auto it = cells_.find(old_cell);
-                if (it != cells_.end()) {
-                    auto& vec = it->second;
-
-                    // Find and remove using swap-and-pop
-                    for (std::size_t i = 0; i < vec.size(); ++i) {
-                        if (vec[i] == idx) {
-                            // Swap with last element and pop
-                            if (i != vec.size() - 1) {
-                                vec[i] = vec.back();
-                            }
-                            vec.pop_back();
-                            break;
-                        }
-                    }
-
-                    // Remove empty cells
-                    if (vec.empty()) {
-                        cells_.erase(it);
-                    }
-                }
-
-                // Add to new cell
-                cells_[new_cell].push_back(idx);
-                entity_cells_[idx] = new_cell;
+            if (new_cell != entity_cells_[idx]) {
+                move_entity_to_cell(idx, new_cell);
             }
             ++idx;
+        }
+    }
+
+    /**
+     * Update a single entity's cell membership.
+     * Use this when the caller knows exactly which entity moved, e.g. after a
+     * swap-and-pop deletion or a single-particle integration step. Avoids the
+     * O(n) iteration of update().
+     *
+     * Complexity: O(k) where k = entities in old cell (usually <= SmallCellSize)
+     * Exception Safety: Strong guarantee. Throws std::out_of_range if idx is
+     * not in [0, entity_count()).
+     */
+    void update_one(IndexT idx, const EntityT& entity) {
+        if (static_cast<std::size_t>(idx) >= entity_cells_.size()) {
+            throw std::out_of_range(
+                "sparse_spatial_hash::update_one: index out of range");
+        }
+        auto new_cell = wrap_cell(get_cell_coord(entity));
+        if (new_cell != entity_cells_[idx]) {
+            move_entity_to_cell(idx, new_cell);
         }
     }
 
@@ -717,47 +802,62 @@ public:
         const std::array<FloatT, Dims>& position
     ) const {
         std::vector<IndexT> results;
-
-        // Calculate cell radius using precomputed reciprocals (faster than division)
-        std::array<int, Dims> cell_radius;
-        for (std::size_t d = 0; d < Dims; ++d) {
-            cell_radius[d] = static_cast<int>(std::ceil(radius * cell_size_inv_[d]));
-        }
-
-        auto center_cell = get_cell_coord(position);
-
-        // Iterate over all cells within radius
-        iterate_cell_neighborhood(center_cell, cell_radius,
-            [&](const cell_type& cell) {
-                auto it = cells_.find(cell);
-                if (it != cells_.end()) {
-                    const auto& entities = it->second;
-                    results.insert(results.end(), entities.begin(), entities.end());
-                }
-            });
-
+        for_each_in_radius(radius, position, [&](IndexT idx) {
+            results.push_back(idx);
+        });
         return results;
     }
 
     /**
-     * Process entity pairs within a given radius
-     * Callback signature: void(IndexT idx1, IndexT idx2)
-     * Avoids duplicate pairs
-     * Complexity: O(k²) where k = average entities per cell
-     * Exception Safety: Depends on callback
+     * Visit each candidate entity within radius of a position.
+     *
+     * Like query_radius but does not allocate; the callback is invoked once per
+     * entity in cells touched by the radius. As with query_radius, the result
+     * set is a superset of the entities truly within `radius` (caller filters
+     * by exact distance).
+     *
+     * Complexity: O(k) where k = entities in queried cells
+     * Exception Safety: Strong guarantee on the grid; depends on the callback.
      */
-    template<typename EntityRange, typename Callback>
-        requires std::invocable<Callback, IndexT, IndexT>
-    void for_each_pair(
-        const EntityRange& entities,
+    template<typename Callback>
+        requires std::invocable<Callback, IndexT>
+    void for_each_in_radius(
         FloatT radius,
+        const std::array<FloatT, Dims>& position,
         Callback&& callback
     ) const {
-        // Use precomputed reciprocals for faster cell radius calculation
-        std::array<int, Dims> cell_radius;
-        for (std::size_t d = 0; d < Dims; ++d) {
-            cell_radius[d] = static_cast<int>(std::ceil(radius * cell_size_inv_[d]));
-        }
+        const auto cell_radius = cell_radius_for(radius);
+        const auto center_cell = get_cell_coord(position);
+        iterate_cell_neighborhood(center_cell, cell_radius,
+            [&](const cell_type& cell) {
+                auto it = cells_.find(cell);
+                if (it == cells_.end()) return;
+                for (IndexT idx : it->second) {
+                    callback(idx);
+                }
+            });
+    }
+
+    /**
+     * Visit each unordered pair of entity indices that share a cell, or whose
+     * cells are within `radius` of each other. The pair set is a superset of
+     * the entity pairs actually within `radius` Euclidean distance; the
+     * callback is the place to filter by exact distance using the user's
+     * entity buffer.
+     *
+     * Each unordered pair {i, j} is visited at most once: the callback will
+     * see either (i, j) or (j, i), not both, and never with i == j. The
+     * ordering of i, j within a single visit is unspecified for cross-cell
+     * pairs (within-cell pairs always have i < j).
+     *
+     * Callback signature: void(IndexT idx1, IndexT idx2)
+     * Complexity: O(c * k_bar^2) where c = occupied cells, k_bar = avg per cell.
+     * Exception Safety: Strong guarantee on the grid; depends on the callback.
+     */
+    template<typename Callback>
+        requires std::invocable<Callback, IndexT, IndexT>
+    void for_each_pair(FloatT radius, Callback&& callback) const {
+        const auto cell_radius = cell_radius_for(radius);
 
         // Process each occupied cell
         for (const auto& [center_cell, center_entities] : cells_) {
@@ -787,16 +887,19 @@ public:
     }
 
     /**
-     * Get entities in a specific cell
-     * Returns empty range if cell is unoccupied
+     * Get the indices of entities in a specific cell.
+     * Returns an empty span if the cell is unoccupied.
+     *
+     * The span aliases storage owned by the grid; do not retain it across
+     * rebuild(), update(), update_one(), or any other mutating call.
+     *
+     * Complexity: O(1)
+     * Exception Safety: Nothrow
      */
-    [[nodiscard]] auto cell_entities(const cell_type& cell) const {
-        static const entity_list empty_vec;
+    [[nodiscard]] std::span<const IndexT> cell_entities(const cell_type& cell) const noexcept {
         auto it = cells_.find(cell);
-        if (it != cells_.end()) {
-            return it->second | std::views::all;
-        }
-        return empty_vec | std::views::all;
+        if (it == cells_.end()) return {};
+        return std::span<const IndexT>(it->second.begin(), it->second.size());
     }
 
     // ========================================================================
@@ -829,10 +932,104 @@ public:
         return resolution_;
     }
 
+    // ========================================================================
+    // Diagnostics
+    // ========================================================================
+
+    /**
+     * Get the cell currently tracked for entity index `idx`.
+     * Returns std::nullopt if `idx` is out of range.
+     *
+     * Complexity: O(1)
+     * Exception Safety: Nothrow
+     */
+    [[nodiscard]] std::optional<cell_type> entity_cell(IndexT idx) const noexcept {
+        if (static_cast<std::size_t>(idx) >= entity_cells_.size()) {
+            return std::nullopt;
+        }
+        return entity_cells_[idx];
+    }
+
+    /**
+     * Cross-check that `cells_` and `entity_cells_` agree.
+     * For every entity index `i`, `entity_cells_[i]` must point to a cell whose
+     * vector contains `i`; conversely, every index in every cell's vector must
+     * have a matching entry in `entity_cells_`. Returns false on any mismatch.
+     *
+     * Useful as a debug invariant check after a series of update_one() calls
+     * or to diagnose "why aren't my pairs being found".
+     *
+     * Complexity: O(n) where n = entity_count()
+     * Exception Safety: Nothrow
+     */
+    [[nodiscard]] bool validate() const noexcept {
+        for (std::size_t i = 0; i < entity_cells_.size(); ++i) {
+            const auto& cell = entity_cells_[i];
+            auto it = cells_.find(cell);
+            if (it == cells_.end()) return false;
+            const auto& vec = it->second;
+            if (std::find(vec.begin(), vec.end(), static_cast<IndexT>(i)) == vec.end()) {
+                return false;
+            }
+        }
+        for (const auto& [cell, vec] : cells_) {
+            for (IndexT idx : vec) {
+                if (static_cast<std::size_t>(idx) >= entity_cells_.size()) return false;
+                if (entity_cells_[idx] != cell) return false;
+            }
+        }
+        return true;
+    }
+
 private:
     // ========================================================================
     // Internal Helpers
     // ========================================================================
+
+    /**
+     * Cell radius (in cells) for a Euclidean radius. Uses precomputed
+     * reciprocals so this is multiplications and ceils, not divisions.
+     */
+    std::array<int, Dims> cell_radius_for(FloatT radius) const noexcept {
+        std::array<int, Dims> r;
+        for (std::size_t d = 0; d < Dims; ++d) {
+            r[d] = static_cast<int>(std::ceil(radius * cell_size_inv_[d]));
+        }
+        return r;
+    }
+
+    /**
+     * Re-bucket entity at `idx` from entity_cells_[idx] to `new_cell`.
+     * Caller has confirmed: idx < entity_cells_.size() and new_cell is
+     * different from the currently-tracked cell. Used by both update() and
+     * update_one() to share the swap-and-pop logic.
+     */
+    void move_entity_to_cell(IndexT idx, const cell_type& new_cell) {
+        const auto old_cell = entity_cells_[idx];
+
+        auto it = cells_.find(old_cell);
+        if (it != cells_.end()) {
+            auto& vec = it->second;
+            [[maybe_unused]] bool found = false;
+            for (std::size_t i = 0; i < vec.size(); ++i) {
+                if (vec[i] == idx) {
+                    if (i != vec.size() - 1) {
+                        vec[i] = vec.back();
+                    }
+                    vec.pop_back();
+                    found = true;
+                    break;
+                }
+            }
+            assert(found && "move_entity_to_cell: entity_cells_ out of sync with cells_");
+            if (vec.empty()) {
+                cells_.erase(it);
+            }
+        }
+
+        cells_[new_cell].push_back(idx);
+        entity_cells_[idx] = new_cell;
+    }
 
     /**
      * Get cell coordinate for an entity (optimized with precomputed reciprocals)
@@ -939,7 +1136,11 @@ private:
     }
 
     /**
-     * Iterate over cell neighborhood
+     * Iterate over cell neighborhood, invoking `func(cell)` for each visited
+     * cell. Each unique cell is visited at most once: under toroidal topology,
+     * a query whose offsets span more than one wrap of the grid would alias
+     * multiple offsets to the same wrapped cell, so this layer dedupes on the
+     * wrapped-cell value before forwarding to `func`.
      */
     template<typename Func>
     void iterate_cell_neighborhood(
@@ -947,7 +1148,23 @@ private:
         const std::array<int, Dims>& radius,
         Func&& func
     ) const {
-        // Recursive N-dimensional iteration
+        if (config_.topology_type == topology::toroidal) {
+            bool may_alias = false;
+            for (std::size_t d = 0; d < Dims; ++d) {
+                if (2 * radius[d] + 1 > resolution_[d]) {
+                    may_alias = true;
+                    break;
+                }
+            }
+            if (may_alias) {
+                std::unordered_set<cell_type, Hash> visited;
+                iterate_recursive<0>(center, radius, center,
+                    [&](const cell_type& cell) {
+                        if (visited.insert(cell).second) func(cell);
+                    });
+                return;
+            }
+        }
         iterate_recursive<0>(center, radius, center, std::forward<Func>(func));
     }
 

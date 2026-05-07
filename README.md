@@ -65,7 +65,7 @@ int main() {
     auto neighbors = grid.query_radius(50.0f, 100.0f, 200.0f, 300.0f);
 
     // Process all pairs within 20 units
-    grid.for_each_pair(particles, 20.0f,
+    grid.for_each_pair(20.0f,
         [&](std::size_t i, std::size_t j) {
             // Compute interaction between particles[i] and particles[j]
         });
@@ -221,9 +221,15 @@ grid.rebuild(vec_particles);
 std::list<Particle> list_particles;
 grid.rebuild(list_particles);
 
-// Works with views!
-auto moving = particles
-    | std::views::filter([](auto& p) { return p.speed > 10.0f; });
+// Works with sized views (subrange of a contiguous range)
+auto first_half = std::ranges::subrange(
+    particles.begin(), particles.begin() + particles.size() / 2);
+grid.rebuild(first_half);
+
+// For non-sized views (e.g., std::views::filter), materialize first:
+std::vector<Particle> moving;
+std::ranges::copy_if(particles, std::back_inserter(moving),
+    [](const auto& p) { return p.speed > 10.0f; });
 grid.rebuild(moving);
 ```
 

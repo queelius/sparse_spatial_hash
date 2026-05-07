@@ -146,14 +146,19 @@ struct position_accessor<MyEntity, 3> {
 
 ### Range Support
 ```cpp
-// Works with any range
+// rebuild() requires a sized range
 std::vector<Entity> vec;
 std::list<Entity> list;
-auto view = vec | std::views::filter(pred);
+auto sub = std::ranges::subrange(vec.begin(), vec.begin() + vec.size() / 2);
 
-grid.rebuild(vec);    // ✓
-grid.rebuild(list);   // ✓
-grid.rebuild(view);   // ✓
+grid.rebuild(vec);    // sized
+grid.rebuild(list);   // sized
+grid.rebuild(sub);    // sized
+
+// Non-sized views (filter, take_while, etc.) must be materialized first:
+std::vector<Entity> filtered;
+std::ranges::copy_if(vec, std::back_inserter(filtered), pred);
+grid.rebuild(filtered);
 ```
 
 ### Incremental Updates
@@ -171,7 +176,7 @@ grid.update(entities);   // Only entities that changed cells
 auto neighbors = grid.query_radius(50.0f, x, y, z);
 
 // Process pairs (no duplicates)
-grid.for_each_pair(entities, radius,
+grid.for_each_pair(radius,
     [](std::size_t i, std::size_t j) {
         // i < j guaranteed
     });

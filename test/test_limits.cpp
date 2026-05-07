@@ -8,37 +8,13 @@
  * - Hash collision behavior at limits
  */
 
-#include <spatial/sparse_spatial_hash.hpp>
+#include "test_helpers.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <vector>
 #include <unordered_set>
 #include <limits>
 
 using namespace spatial;
-
-struct Particle {
-    float x, y, z;
-    int id;
-};
-
-template<>
-struct spatial::position_accessor<Particle, 3> {
-    static float get(const Particle& p, std::size_t dim) {
-        switch(dim) {
-            case 0: return p.x;
-            case 1: return p.y;
-            case 2: return p.z;
-            default: return 0.0f;
-        }
-    }
-};
-
-template<>
-struct spatial::position_accessor<Particle, 2> {
-    static float get(const Particle& p, std::size_t dim) {
-        return dim == 0 ? p.x : p.y;
-    }
-};
 
 TEST_CASE("2D Morton encoding at ±2^31 limit", "[limits][morton][2d]") {
     SECTION("Hash function works at limit boundary") {
@@ -198,6 +174,36 @@ TEST_CASE("3D Morton encoding at ±2^21 limit", "[limits][morton][3d]") {
         // Should have unique hash for each cell
         const int expected = (2 * range + 1) * (2 * range + 1) * (2 * range + 1);
         REQUIRE(hashes.size() == expected);
+    }
+
+    SECTION("Negatives near origin do not alias with values near 2^21") {
+        // Regression: before zigzag encoding, the 21-bit mask in morton_part1
+        // made (-1, 0, 0) hash to the same bucket as (2097151, 0, 0) because
+        // static_cast<uint32_t>(-1) & 0x1FFFFF == 0x1FFFFF == 2097151. With
+        // zigzag, small negatives map to small odd values; collisions only
+        // start beyond ±2^20.
+        cell_hash<3, int> hasher;
+
+        REQUIRE(hasher(cell_coord<3, int>{-1, 0, 0}) !=
+                hasher(cell_coord<3, int>{2097151, 0, 0}));
+        REQUIRE(hasher(cell_coord<3, int>{0, -1, 0}) !=
+                hasher(cell_coord<3, int>{0, 2097151, 0}));
+        REQUIRE(hasher(cell_coord<3, int>{0, 0, -1}) !=
+                hasher(cell_coord<3, int>{0, 0, 2097151}));
+
+        // And a fuller sweep: every cell in [-100, 100]^3 should hash uniquely
+        // (well within the new ±2^20 safe range).
+        std::unordered_set<std::size_t> hashes;
+        const int range = 100;
+        for (int x = -range; x <= range; ++x) {
+            for (int y = -range; y <= range; ++y) {
+                for (int z = -range; z <= range; ++z) {
+                    hashes.insert(hasher(cell_coord<3, int>{x, y, z}));
+                }
+            }
+        }
+        const int expected = (2 * range + 1) * (2 * range + 1) * (2 * range + 1);
+        REQUIRE(hashes.size() == static_cast<std::size_t>(expected));
     }
 
     SECTION("Beyond 2^21 still works but may have collisions") {

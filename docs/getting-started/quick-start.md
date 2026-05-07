@@ -105,7 +105,7 @@ for (auto idx : neighbors) {
 
 ```cpp
 // Find all pairs within 20 units of each other
-grid.for_each_pair(particles, 20.0f,
+grid.for_each_pair(20.0f,
     [&](std::size_t i, std::size_t j) {
         // i and j are guaranteed to be different (i < j)
         const auto& p1 = particles[i];
@@ -145,7 +145,7 @@ for (int frame = 0; frame < 100; ++frame) {
 
     // Process collisions this frame
     int collisions = 0;
-    grid.for_each_pair(particles, 20.0f,
+    grid.for_each_pair(20.0f,
         [&](std::size_t i, std::size_t j) {
             collisions++;
         });
@@ -229,7 +229,7 @@ int main() {
         // Process collisions
         if (frame % 10 == 0) {
             int collisions = 0;
-            grid.for_each_pair(particles, 20.0f,
+            grid.for_each_pair(20.0f,
                 [&](std::size_t i, std::size_t j) {
                     collisions++;
                 });

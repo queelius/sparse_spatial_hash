@@ -32,7 +32,7 @@ grid.update(entities);
 
 // Querying
 auto neighbors = grid.query_radius(r, x, y, z);
-grid.for_each_pair(entities, radius, callback);
+grid.for_each_pair(radius, callback);
 
 // Statistics
 auto stats = grid.stats();

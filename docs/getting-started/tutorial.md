@@ -115,7 +115,7 @@ for (auto idx : candidates) {
 For collision detection or force calculations:
 
 ```cpp
-grid.for_each_pair(particles, 20.0f,
+grid.for_each_pair(20.0f,
     [&](std::size_t i, std::size_t j) {
         // i and j are within 20 units (roughly)
         // Guaranteed: i < j (no duplicates)
@@ -171,7 +171,7 @@ for (int frame = 0; frame < 1000; ++frame) {
     grid.update(particles);  // 40x faster than rebuild!
 
     // Process collisions
-    grid.for_each_pair(particles, collision_radius, handle_collision);
+    grid.for_each_pair(collision_radius, handle_collision);
 }
 ```
 
@@ -201,7 +201,7 @@ collision_grid.rebuild(entities);
 awareness_grid.rebuild(entities);
 
 // Fine collision detection
-collision_grid.for_each_pair(entities, 2.0f, handle_collision);
+collision_grid.for_each_pair(2.0f, handle_collision);
 
 // Coarse AI queries
 auto nearby = awareness_grid.query_radius(100.0f, player_pos);
