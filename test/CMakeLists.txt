@@ -23,6 +23,8 @@ add_executable(test_sparse_hash
     test_exception_safety.cpp
     test_limits.cpp
     test_v21_api.cpp
+    test_neighborhoods.cpp
+    test_validation.cpp
 )
 
 target_link_libraries(test_sparse_hash PRIVATE
@@ -35,3 +37,11 @@ list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(CTest)
 include(Catch)
 catch_discover_tests(test_sparse_hash)
+
+# Keep replacement allocation functions isolated from the normal test runner.
+add_executable(test_sparse_hash_allocations test_allocation_safety.cpp)
+target_link_libraries(test_sparse_hash_allocations PRIVATE
+    sparse_spatial_hash::sparse_spatial_hash
+    Catch2::Catch2WithMain
+)
+catch_discover_tests(test_sparse_hash_allocations)

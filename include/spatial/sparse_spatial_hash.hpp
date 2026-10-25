@@ -40,7 +40,8 @@
 #include <optional>
 #include <ostream>
 #include <span>
-#include <unordered_set>
+#include <cstdint>
+#include <limits>
 
 namespace spatial {
 
@@ -826,6 +827,7 @@ public:
         const std::array<FloatT, Dims>& position,
         Callback&& callback
     ) const {
+        if (cells_.empty()) return;
         const auto cell_radius = cell_radius_for(radius);
         const auto center_cell = get_cell_coord(position);
         iterate_cell_neighborhood(center_cell, cell_radius,
@@ -959,26 +961,30 @@ public:
      * Useful as a debug invariant check after a series of update_one() calls
      * or to diagnose "why aren't my pairs being found".
      *
-     * Complexity: O(n) where n = entity_count()
-     * Exception Safety: Nothrow
+     * Complexity: O(n + c) time and O(n) auxiliary bytes, where
+     * n = entity_count() and c = cell_count(). Uses the configured allocator.
+     * Exception Safety: Strong guarantee. May throw on allocation failure.
      */
-    [[nodiscard]] bool validate() const noexcept {
-        for (std::size_t i = 0; i < entity_cells_.size(); ++i) {
-            const auto& cell = entity_cells_[i];
-            auto it = cells_.find(cell);
-            if (it == cells_.end()) return false;
-            const auto& vec = it->second;
-            if (std::find(vec.begin(), vec.end(), static_cast<IndexT>(i)) == vec.end()) {
-                return false;
-            }
-        }
+    [[nodiscard]] bool validate() const {
+        if (entity_cells_.empty()) return cells_.empty();
+
+        using seen_allocator = typename std::allocator_traits<Allocator>::template
+            rebind_alloc<unsigned char>;
+        std::vector<unsigned char, seen_allocator> seen(
+            entity_cells_.size(), 0, seen_allocator(entity_cells_.get_allocator()));
+        std::size_t count = 0;
         for (const auto& [cell, vec] : cells_) {
+            if (vec.empty()) return false;
             for (IndexT idx : vec) {
-                if (static_cast<std::size_t>(idx) >= entity_cells_.size()) return false;
-                if (entity_cells_[idx] != cell) return false;
+                const auto index = static_cast<std::size_t>(idx);
+                if (index >= seen.size()) return false;
+                if (seen[index] || entity_cells_[index] != cell) return false;
+                seen[index] = 1;
+                ++count;
             }
         }
-        return true;
+        // Unique, in-range entries covering n indices imply no missing index.
+        return count == entity_cells_.size();
     }
 
 private:
@@ -1007,28 +1013,40 @@ private:
     void move_entity_to_cell(IndexT idx, const cell_type& new_cell) {
         const auto old_cell = entity_cells_[idx];
 
-        auto it = cells_.find(old_cell);
-        if (it != cells_.end()) {
-            auto& vec = it->second;
-            [[maybe_unused]] bool found = false;
-            for (std::size_t i = 0; i < vec.size(); ++i) {
-                if (vec[i] == idx) {
-                    if (i != vec.size() - 1) {
-                        vec[i] = vec.back();
+        // Insertion can rehash, so only acquire the old-cell iterator after
+        // preparing the destination. Nothing removes source membership until
+        // both map insertion and destination-vector growth have succeeded.
+        auto [destination, inserted] = cells_.try_emplace(new_cell);
+        try {
+            auto old = cells_.find(old_cell);
+            destination->second.push_back(idx);
+
+            if (old != cells_.end()) {
+                auto& vec = old->second;
+                [[maybe_unused]] bool found = false;
+                for (std::size_t i = 0; i < vec.size(); ++i) {
+                    if (vec[i] == idx) {
+                        if (i != vec.size() - 1) {
+                            vec[i] = vec.back();
+                        }
+                        vec.pop_back();
+                        found = true;
+                        break;
                     }
-                    vec.pop_back();
-                    found = true;
-                    break;
+                }
+                assert(found && "move_entity_to_cell: entity_cells_ out of sync with cells_");
+                if (vec.empty()) {
+                    cells_.erase(old);
                 }
             }
-            assert(found && "move_entity_to_cell: entity_cells_ out of sync with cells_");
-            if (vec.empty()) {
-                cells_.erase(it);
-            }
-        }
 
-        cells_[new_cell].push_back(idx);
-        entity_cells_[idx] = new_cell;
+            entity_cells_[idx] = new_cell;
+        } catch (...) {
+            if (inserted) {
+                cells_.erase(destination);
+            }
+            throw;
+        }
     }
 
     /**
@@ -1137,10 +1155,9 @@ private:
 
     /**
      * Iterate over cell neighborhood, invoking `func(cell)` for each visited
-     * cell. Each unique cell is visited at most once: under toroidal topology,
-     * a query whose offsets span more than one wrap of the grid would alias
-     * multiple offsets to the same wrapped cell, so this layer dedupes on the
-     * wrapped-cell value before forwarding to `func`.
+     * cell. Each axis enumerates only distinct coordinates: bounded intervals
+     * are clamped to the grid, and toroidal intervals cover at most one period.
+     * The Cartesian product therefore visits each cell once without allocating.
      */
     template<typename Func>
     void iterate_cell_neighborhood(
@@ -1148,42 +1165,50 @@ private:
         const std::array<int, Dims>& radius,
         Func&& func
     ) const {
-        if (config_.topology_type == topology::toroidal) {
-            bool may_alias = false;
-            for (std::size_t d = 0; d < Dims; ++d) {
-                if (2 * radius[d] + 1 > resolution_[d]) {
-                    may_alias = true;
+        std::array<std::int64_t, Dims> lower, upper;
+        for (std::size_t d = 0; d < Dims; ++d) {
+            if (radius[d] < 0) return;
+            // Widen before arithmetic: both c +/- r and 2*r + 1 can exceed int.
+            const auto r = static_cast<std::int64_t>(radius[d]);
+            const auto first = static_cast<std::int64_t>(center[d]) - r;
+            const auto last = static_cast<std::int64_t>(center[d]) + r;
+            const auto period = static_cast<std::int64_t>(resolution_[d]);
+            switch (config_.topology_type) {
+                case topology::bounded:
+                    lower[d] = std::clamp(first, std::int64_t{0}, period - 1);
+                    upper[d] = std::clamp(last, std::int64_t{0}, period - 1);
                     break;
-                }
-            }
-            if (may_alias) {
-                std::unordered_set<cell_type, Hash> visited;
-                iterate_recursive<0>(center, radius, center,
-                    [&](const cell_type& cell) {
-                        if (visited.insert(cell).second) func(cell);
-                    });
-                return;
+                case topology::toroidal:
+                    lower[d] = first % period;
+                    if (lower[d] < 0) lower[d] += period;
+                    upper[d] = lower[d] + std::min(2 * r + 1, period) - 1;
+                    break;
+                case topology::infinite:
+                    lower[d] = std::max(first,
+                        static_cast<std::int64_t>(std::numeric_limits<int>::min()));
+                    upper[d] = std::min(last,
+                        static_cast<std::int64_t>(std::numeric_limits<int>::max()));
+                    break;
             }
         }
-        iterate_recursive<0>(center, radius, center, std::forward<Func>(func));
+        iterate_recursive<0>(lower, upper, center, std::forward<Func>(func));
     }
 
     template<std::size_t Dim, typename Func>
     void iterate_recursive(
-        const cell_type& center,
-        const std::array<int, Dims>& radius,
+        const std::array<std::int64_t, Dims>& lower,
+        const std::array<std::int64_t, Dims>& upper,
         cell_type current,
         Func&& func
     ) const {
         if constexpr (Dim == Dims) {
-            // Base case: process cell
-            current = wrap_cell(current);
             func(current);
         } else {
-            // Recursive case: iterate this dimension
-            for (int offset = -radius[Dim]; offset <= radius[Dim]; ++offset) {
-                current[Dim] = center[Dim] + offset;
-                iterate_recursive<Dim + 1>(center, radius, current, std::forward<Func>(func));
+            for (auto coordinate = lower[Dim]; coordinate <= upper[Dim]; ++coordinate) {
+                current[Dim] = static_cast<int>(
+                    config_.topology_type == topology::toroidal
+                        ? coordinate % resolution_[Dim] : coordinate);
+                iterate_recursive<Dim + 1>(lower, upper, current, std::forward<Func>(func));
             }
         }
     }
